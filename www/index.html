@@ -19,17 +19,18 @@
       console.log("Onsen UI is ready!");
       
       var canvas = document.querySelector('#meiroCanvas');
-      creator = new MeiroCreator(canvas);
-      create(1);
-    
-    
+      
+      if (canvas !== undefined) {
+        creator = new MeiroCreator(canvas);
+        create(1);
+      }
+
       document.addEventListener('init', function(event) {
         console.log("page init event!!");
         var page = event.target;
         if (page.matches('#homePage')) {
-          //alert("");
-          //ons.notification.alert("");
-          var c = document.getElementById("meiroCanvas");
+          creator = new MeiroCreator(document.querySelector('#meiroCanvas'));
+          create(1);
         }
       });
         
