@@ -1,5 +1,7 @@
 var FLG_TSURO = 0;
 var FLG_KABE = 1;
+var FLG_START = 2;
+var FLG_GOAL = 3;
 
 var OFFSET = {
   TOP: 0,
@@ -55,6 +57,7 @@ var MeiroCreator = function(canvas) {
   this.C_HEIGHT = parseInt(canvas.height, 10);
   this.canvas = canvas;
   this.ctx = canvas.getContext('2d');
+  this.isStart = false;
   
   //マス数分の２次元配列 (0：通路、1：壁)
   this.data = [];
@@ -232,15 +235,13 @@ MeiroCreator.prototype.bouTaoshi = function() {
     cellPos.row += 2;
   }
 
-  //スタートを作る
-  this.setCellFlg(0, 1, FLG_TSURO);
-  
-  //ゴールを作る
-  this.setCellFlg(this.rowCount() - 1, this.columnCount() - 2, FLG_TSURO);
+  //スタート地点設定
+  this.setCellFlg(2, 2, FLG_START);
+  //ゴール地点設定
+  this.setCellFlg(this.rowCount() - 3, this.columnCount() - 3, FLG_GOAL);
 
-  //結果を画面に描画する
-  var startCellPos = new CellPosition(2,2);
-  this.draw(startCellPos);
+  //画面描画
+  this.draw();
 };
 
 
@@ -261,6 +262,7 @@ MeiroCreator.prototype.anahoriHou = function() {
   //初回の穴掘り位置を決定(偶数の位置を設定)
   var startPosition = this.random(2, this.rowCount() - 3);
   startPosition = startPosition + (startPosition % 2);
+  startPosition = 2;
 
   //初回セルの穴掘り
   var cellPos = new CellPosition(startPosition, startPosition);
@@ -318,8 +320,14 @@ MeiroCreator.prototype.anahoriHou = function() {
     }
   }
 
+  //スタート地点
+  this.setCellFlg(startCellPos.row, startCellPos.column, FLG_START);
+
+  //ゴール地点
+  this.setCellFlg(this.rowCount() - 3, this.columnCount() - 3, FLG_GOAL);
+
   //結果を画面に描画する
-  this.draw(startCellPos);
+  this.draw();
 };
 
 /**
@@ -332,10 +340,10 @@ MeiroCreator.prototype.clearCanvas = function() {
 /**
  * 画面に描画する
  */
-MeiroCreator.prototype.draw = function(startCellPos) {
+MeiroCreator.prototype.draw = function() {
 
-  //console.log(this.data);
   var self = this;
+  var ctx = this.ctx;
 
   //１マスのサイズ(px)
   var masuSize = (this.C_HEIGHT * 1.238) / this.rowCount();
@@ -346,21 +354,21 @@ MeiroCreator.prototype.draw = function(startCellPos) {
   masuSizeMini = masuSize / 2;
 
   //背景塗りつぶし
-  this.ctx.fillStyle = '#FFF';
-  this.ctx.fillRect(0, 0,           //x,y
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(0, 0,           //x,y
     (this.columnCount() * masuSize) - (Math.floor(this.columnCount() / 2) * masuSizeMini),  //横幅
     (this.rowCount() * masuSize) - (Math.floor(this.rowCount() / 2) * masuSizeMini)  //縦幅
   );
 
   //壁を塗る
   var top = 0, left = 0;
-  this.ctx.fillStyle = '#333';
+  ctx.fillStyle = '#333';
 
   //描画する矩形リスト
   var drawRects = [];
 
-  //スタート位置の矩形
-  var startRect;
+  //スタート位置・ゴール位置を保持する変数
+  var startRect, goalRect;
 
   //縦方向のループ
   for (var i = 0; i < this.rowCount(); i++) {
@@ -376,8 +384,11 @@ MeiroCreator.prototype.draw = function(startCellPos) {
         drawRects.push({ top: top, left: left, width: width, height: height });
       }
 
-      if (i == startCellPos.row && j == startCellPos.column) {
+      if (this.cellFlg(i, j) == FLG_START) {
         startRect = { top: top, left: left, width: width, height: height };
+      }
+      if (this.cellFlg(i, j) == FLG_GOAL) {
+        goalRect = { top: top, left: left, width: width, height: height };
       }
 
       //横位置を右に移動
@@ -389,19 +400,31 @@ MeiroCreator.prototype.draw = function(startCellPos) {
 
   //描画
   drawRects.forEach(function(rect, index) {
-    self.ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
   });
 
   //スタート地点
   var maruSize = (masuSize / 2) - 2 < 3 ? 3 : (masuSize / 2) - 2;
 
-  self.ctx.beginPath();
-  self.ctx.arc(startRect.left  + (masuSize / 2), 
+  this.ctx.fillStyle = '#922';
+  ctx.beginPath();
+  ctx.arc(startRect.left  + (masuSize / 2), 
     startRect.top + (masuSize / 2), 
     maruSize, 
     0, Math.PI*2, false);
-  self.ctx.fill();
+  ctx.fill();
 
+  //ゴール地点
+  var fontSize = 20 * (1 - (masuSize / (Math.pow(masuSize, 2) - masuSize)));
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  ctx.font = Math.floor(fontSize) + "px 'ＭＳ Ｐゴシック'";
+  ctx.fillText("G", 
+    goalRect.left + (masuSize / 2), 
+    goalRect.top  + (masuSize / 2), masuSize);
+
+  console.log("masuSize=" + masuSize); 
+  
 };
 
 

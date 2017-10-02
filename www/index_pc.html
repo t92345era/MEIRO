@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title></title>
+<meta charset="utf-8">
+<meta name="description" content="">
+<meta name="author" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="">
+<!--[if lt IE 9]>
+<script src="//cdn.jsdelivr.net/html5shiv/3.7.2/html5shiv.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/respond.js/1.4.2/respond.min.js"></script>
+<![endif]-->
+<link rel="shortcut icon" href="">
+<style type="text/css">
+  body {
+    background: #ccc;
+  }
+</style>
+<script src="components/monaca-jquery/jquery.js"></script>
+<script src="js/creator.js"></script>
+<script>
+  $(function() {
+    var canvas = document.querySelector('#meiroCanvas');
+    creator = new MeiroCreator(canvas);
+    create(1);
+  });
+
+</script>
+
+</head>
+<body>
+  <div>
+    <canvas id="meiroCanvas"  width="500px" height="500px">
+    </canvas>
+  </div>
+  <div style="border:1px solid #999; padding:5px;" >
+    <label>
+      <input type="radio" name="houhou" id="bou" checked>棒倒し方
+    </label>
+    <label>
+      <input type="radio" name="houhou" id="kabeHori">壁掘り方
+    </label>
+  </div>
+  <div>
+    <button onclick="create(1)">レベル1</button>
+    <button onclick="create(2)">レベル2</button>
+    <button onclick="create(3)">レベル3</button>
+    <button onclick="create(10)">レベル10</button>
+    <button onclick="create(99)">レベル99</button>
+  </div>
+</body>
+</html>
