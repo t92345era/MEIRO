@@ -10,6 +10,13 @@ var OFFSET = {
   LEFT: 3
 };
 
+var KEYCODE = {
+  LEFT: 37,
+  TOP: 38,
+  RIGHT: 39,
+  BOTTOM: 40
+};
+
 /**
  * セル位置を管理するクラス
  * @param {number} row 行インデックス
@@ -52,6 +59,9 @@ CellPosition.prototype.move = function(offset, count) {
   return moveCellPosition;
 };
 
+/*************************************************************************************/
+
+// コンストラクタ
 var MeiroCreator = function(canvas) {
   this.C_WIDTH = parseInt(canvas.width, 10);
   this.C_HEIGHT = parseInt(canvas.height, 10);
@@ -62,6 +72,11 @@ var MeiroCreator = function(canvas) {
   //マス数分の２次元配列 (0：通路、1：壁)
   this.data = [];
   this.lvl = 1;
+  
+  this.bollPosition = { x: 0, y: 0, row: 0, column: 0 };
+  this.masuSize = 0;
+  this.masuSizeMini = 0;
+  
 };
 
 // 初期化
@@ -92,10 +107,51 @@ MeiroCreator.prototype.init = function() {
     }
     this.data.push(columns);
   }
+  
+  //１マスのサイズ(px)を計測する
+  this.masuSize = (this.C_HEIGHT * 1.238) / this.rowCount();
+  if ((this.C_WIDTH * 1.238)/ this.columnCount() < this.masuSize) {
+    this.masuSize = (this.C_WIDTH * 1.238) / this.columnCount();
+  }
+  this.masuSizeMini = this.masuSize / 2;
 
   //キャンパスをクリア
   this.clearCanvas();
 };
+
+// ゲーム開始
+MeiroCreator.prototype.start = function() {
+  if (this.isStart !== true) {
+    this.isStart = true;
+    this.loopFrame();    
+  }
+};
+
+// ゲーム停止
+MeiroCreator.prototype.stop = function() {
+  
+  if (this.isStart) {
+    this.isStart = false;
+    this.loopFrame();
+  }
+};
+
+MeiroCreator.prototype.loopFrame = function() {
+  var self = this;
+  
+  if (this.isStart !== true) {
+    return;
+  }
+ 
+  //ループ処理
+  requestAnimFrame(function() {
+    self.loopFrame();
+  });
+  
+  //描画処理
+  self.draw();
+  
+}
 
 /**
  * 最小値〜最大値の間で、ランダムな値を取得する
@@ -346,12 +402,8 @@ MeiroCreator.prototype.draw = function() {
   var ctx = this.ctx;
 
   //１マスのサイズ(px)
-  var masuSize = (this.C_HEIGHT * 1.238) / this.rowCount();
-  var masuSizeMini;
-  if ((this.C_WIDTH * 1.238)/ this.columnCount() < masuSize) {
-    masuSize = (this.C_WIDTH * 1.238) / this.columnCount();
-  }
-  masuSizeMini = masuSize / 2;
+  var masuSize = this.masuSize;
+  var masuSizeMini = this.masuSizeMini;
 
   //背景塗りつぶし
   ctx.fillStyle = '#FFF';
@@ -403,16 +455,18 @@ MeiroCreator.prototype.draw = function() {
     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
   });
 
-  //スタート地点
+  //現在位置を示すボール
   var maruSize = (masuSize / 2) - 2 < 3 ? 3 : (masuSize / 2) - 2;
 
-  this.ctx.fillStyle = '#922';
-  ctx.beginPath();
-  ctx.arc(startRect.left  + (masuSize / 2), 
-    startRect.top + (masuSize / 2), 
-    maruSize, 
-    0, Math.PI*2, false);
-  ctx.fill();
+  if (this.isStart) {
+    this.ctx.fillStyle = '#922';
+    ctx.beginPath();
+    ctx.arc(startRect.left  + (masuSize / 2), 
+      startRect.top + (masuSize / 2), 
+      maruSize, 
+      0, Math.PI*2, false);
+    ctx.fill();
+  }
 
   //ゴール地点
   var fontSize = 20 * (1 - (masuSize / (Math.pow(masuSize, 2) - masuSize)));
@@ -430,6 +484,7 @@ MeiroCreator.prototype.draw = function() {
 
 var creator;
 
+
 function create(lvl) {
   creator.lvl = lvl;
   if ($("#bou").is(":checked")) {
@@ -438,3 +493,48 @@ function create(lvl) {
     creator.anahoriHou();
   }
 }
+
+
+function startGame() {
+  creator.start();
+}
+
+function stopGame() {
+  creator.stop();
+}
+
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+
+
+// キーボードの入力状態を記録する配列
+var input_key_buffer = new Array();
+
+$(function() {
+  
+  // ------------------------------------------------------------
+  // キーボードを押したときに実行されるイベント
+  // ------------------------------------------------------------
+  document.onkeydown = function (e){
+    if(!e) e = window.event; // レガシー
+
+    input_key_buffer[e.keyCode] = true;
+  };
+
+  // ------------------------------------------------------------
+  // キーボードを離したときに実行されるイベント
+  // ------------------------------------------------------------
+  document.onkeyup = function (e){
+    if(!e) e = window.event; // レガシー
+
+    input_key_buffer[e.keyCode] = false;
+  };
+
+});
+
