@@ -5,6 +5,9 @@ var FLG_GOAL = 3;
 
 var MOVE_PIX = 1.5;
 
+var KISEKI_FLG_ON  = 1;
+var KISEKI_FLG_OFF = 0;
+
 var OFFSET = {
   TOP: 0,
   RIGHT: 1,
@@ -69,15 +72,27 @@ var MeiroCreator = function(canvas) {
   this.C_HEIGHT = parseInt(canvas.height, 10);
   this.canvas = canvas;
   this.ctx = canvas.getContext('2d');
+
+  //ゲーム開始状態かのフラグ (true:開始中、false:停止中)
   this.isStart = false;
   
-  //マス数分の２次元配列 (0：通路、1：壁)
+  //マス数分の２次元配列 (0：通路、1：壁、2:スタート地点、3:ゴール地点)
   this.data = [];
+
+  //通過済みの通路情報を保持する２次元配列
+  this.kisekiData = [];
+
+  //ゲームレベル
   this.lvl = 1;
   
+  //ボールの現在位置を格納するオブジェクト
   this.boll = { row: 0, column: 0, posX: 0, posY: 0 };
+  //ボールの半径
   this.bollRadius = 0;
+
+  //１マスのサイズ(px)
   this.masuSize = 0;
+  //１マス(半分)のサイズ(px)
   this.masuSizeMini = 0;
   
   //コントローラの初期化
@@ -103,14 +118,12 @@ MeiroCreator.prototype.init = function() {
 
   //２次元配列クリア
   this.data.length = 0;
+  this.kisekiData.length = 0;
 
-  //マス数分の２次元配列を作成する (0：通路、1：壁)
+  //マス数分の２次元配列を作成する
   for (var i = 0; i < masuCount; i++) {
-    var columns = [];
-    for (var j = 0; j < masuCount; j++) {
-      columns.push(FLG_TSURO);
-    }
-    this.data.push(columns);
+    this.kisekiData.push((new Array(masuCount)).fill(KISEKI_FLG_OFF));
+    this.data.push((new Array(masuCount)).fill(FLG_TSURO));
   }
   
   //１マスのサイズ(px)を計測する
@@ -279,6 +292,32 @@ MeiroCreator.prototype.cellFlg = function(row, column) {
   }
 };
 
+/**
+ * 軌跡フラグを取得する
+ */
+MeiroCreator.prototype.kisekiFlg = function(row, column) {
+  if (row instanceof CellPosition) {
+    //セル位置クラスの場合
+    return this.kisekiData[row.row][row.column];
+  } else {
+    //行・列インデックス指定の場合
+    return this.kisekiData[row][column];
+  }
+};
+
+/**
+ * 指定セルに、軌跡フラグを設定する
+ */
+MeiroCreator.prototype.setKisekiFlg = function(row, column, flg) {
+  if (row instanceof CellPosition) {
+    //セル位置クラスの場合
+    this.kisekiData[row.row][row.column] = column;
+  } else {
+    //行・列インデックス指定の場合
+    this.kisekiData[row][column] = flg;
+  }
+};
+
 
 /**
  * 行のマス数を取得する
@@ -441,6 +480,11 @@ MeiroCreator.prototype.clearCanvas = function() {
  */
 MeiroCreator.prototype.draw = function() {
 
+  console.log("draw!!");
+
+  var fillColorHex = '#FFF'; //背景(通路)の色
+  var kabeColorHex = '#333'; //壁の色
+
   var self = this;
   var ctx = this.ctx;
 
@@ -449,7 +493,7 @@ MeiroCreator.prototype.draw = function() {
   var masuSizeMini = this.masuSizeMini;
 
   //背景塗りつぶし
-  ctx.fillStyle = '#FFF';
+  ctx.fillStyle = fillColorHex;
   ctx.fillRect(0, 0,           //x,y
     (this.columnCount() * masuSize) - (Math.floor(this.columnCount() / 2) * masuSizeMini),  //横幅
     (this.rowCount() * masuSize) - (Math.floor(this.rowCount() / 2) * masuSizeMini)  //縦幅
@@ -457,7 +501,7 @@ MeiroCreator.prototype.draw = function() {
 
   //壁を塗る
   var top = 0, left = 0;
-  ctx.fillStyle = '#333';
+  ctx.fillStyle = kabeColorHex;
 
   //描画する矩形リスト
   var drawRects = [];
@@ -473,14 +517,20 @@ MeiroCreator.prototype.draw = function() {
     //横方向のループ
     for (var j = 0; j < this.columnCount(); j++) {
       var width = this.getMasuWidth(j); //横の幅
-      
+
+      //壁の描画
       if (this.cellFlg(i, j) == FLG_KABE) {
-        drawRects.push({ top: top, left: left, width: width, height: height });
+        //drawRects.push({ top: top, left: left, width: width, height: height });
+        ctx.fillStyle = kabeColorHex;
+        ctx.fillRect(left, top, width, height);
       }
 
-      if (this.cellFlg(i, j) == FLG_START) {
-        startRect = { top: top, left: left, width: width, height: height };
+      //通過済み通路の軌跡
+      if (this.kisekiFlg(i, j) == KISEKI_FLG_ON) {
+        ctx.fillStyle = "#B0C4DE";
+        ctx.fillRect(left, top, width, height);
       }
+
       if (this.cellFlg(i, j) == FLG_GOAL) {
         goalRect = { top: top, left: left, width: width, height: height };
       }
@@ -496,9 +546,6 @@ MeiroCreator.prototype.draw = function() {
   drawRects.forEach(function(rect, index) {
     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
   });
-
-  //現在位置を示すボール
-  //var maruSize = (masuSize / 2) - 2 < 3 ? 3 : (masuSize / 2) - 2;
 
   if (this.isStart) {
     // //ボールの座標計算
@@ -523,9 +570,6 @@ MeiroCreator.prototype.draw = function() {
   ctx.fillText("G", 
     goalRect.left + (masuSize / 2), 
     goalRect.top  + (masuSize / 2), masuSize);
-
-  //console.log("masuSize=" + masuSize); 
-  
 };
 
 /**
@@ -567,7 +611,6 @@ MeiroCreator.prototype.XPointToColumn = function(xpos) {
   }
   return col;
 };
-
 
 /**
  * 指定列インデックスのマス幅を取得する
@@ -645,9 +688,19 @@ GameController.prototype.move = function(direction) {
     cre.boll.posX -= movePix;
   }
 
+  //現在のセル位置を退避
+  var column = cre.boll.column;
+  var row = cre.boll.row;
+
   //移動先セルの行・列インデックスを設定
   cre.boll.column = cre.XPointToColumn(cre.boll.posX);
-  cre.boll.row = cre.YPointToRow(cre.boll.posY);  
+  cre.boll.row = cre.YPointToRow(cre.boll.posY); 
+
+  //セル位置が変わったら、移動前セルを通過済みに設定する
+  if (column != cre.boll.column || row != cre.boll.row) {
+    cre.setKisekiFlg(row, column, KISEKI_FLG_ON);
+  }
+
 }
 
 /**
@@ -655,16 +708,6 @@ GameController.prototype.move = function(direction) {
  */
 GameController.prototype.canMove = function(direction) {
   var cre = this.creator;
-
-  //移動先のフラグを取得
-  //var pos = new CellPosition(cre.boll.row, cre.boll.column);
-  //var flg = cre.cellFlg(pos.move(direction));
-
-  // if (direction == OFFSET.TOP || direction == OFFSET.BOTTOM) {
-  //   sa = cre.boll.ypos - cre.rowToYPoint(cre.boll.row);
-  // } else if (direction == OFFSET.LEFT || direction == OFFSET.RIGHT) {    
-  //   sa = cre.boll.xpos - cre.columnToXPoint(cre.boll.column);
-  // }
 
   var movePix = MOVE_PIX;
   var xpos = -1, ypos = -1;
