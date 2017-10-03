@@ -15,26 +15,27 @@
   <link rel="stylesheet" href="css/style.css">
 
   <script>
-
     ons.ready(function() {
       console.log("Onsen UI is ready!");
       
       var canvas = document.querySelector('#meiroCanvas');
-      
       if (canvas !== undefined) {
         creator = new MeiroCreator(canvas);
         create(1);
       }
 
-      document.addEventListener('init', function(event) {
-        console.log("page init event!!");
-        var page = event.target;
-        if (page.matches('#homePage')) {
-          creator = new MeiroCreator(document.querySelector('#meiroCanvas'));
-          create(1);
-        }
-      });
-        
+      // document.addEventListener('init', function(event) {
+      //   console.log("page init event!!");
+      //   var page = event.target;
+      //   if (page.matches('#homePage')) {
+      //     creator = new MeiroCreator(document.querySelector('#meiroCanvas'));
+      //     create(1);
+      //   }
+      // });
+      
+      //加速度センサーを設定
+      var options = { frequency: 500 };  // Update every 3 seconds
+      var watchID = navigator.accelerometer.watchAcceleration(onAccelerometerSuccess, onAccelerometerError, options);
     });
 
     window.fn = {};
@@ -50,11 +51,19 @@
         .then(menu.close.bind(menu));
     };
 
-    /*
-
-    */
+    function onAccelerometerSuccess(acceleration) {
+        // alert('Acceleration X: ' + acceleration.x + '\n' +
+        //       'Acceleration Y: ' + acceleration.y + '\n' +
+        //       'Acceleration Z: ' + acceleration.z + '\n' +
+        //       'Timestamp: '      + acceleration.timestamp + '\n');
+        $("#AX").text(acceleration.x);
+        $("#AY").text(acceleration.y);
+        $("#AZ").text(acceleration.z);
+    };
     
-    
+    function onAccelerometerError() {
+        alert('onError!');
+    };
 
   </script>
 </head>
@@ -91,7 +100,8 @@
         </div>
       </ons-toolbar>
       <div>
-        <canvas id="meiroCanvas" width="400px" height="400px">
+        <canvas id="meiroCanvas" width="400px" 
+          style="" height="400px">
         </canvas>
       </div>
       <div style="border:1px solid #999; padding:5px;" >
@@ -109,6 +119,16 @@
         <button onclick="create(10)">レベル10</button>
         <button onclick="create(99)">レベル99</button>
       </div>
+      <div style="margin-top:10px;">
+        <button onclick="startGame()">スタート</button>
+        <button onclick="stopGame()">停止</button>
+      </div>
+      <div>
+        <div>x:<span id="AX"></span></div>
+        <div>y:<span id="AY"></span></div>
+        <div>z:<span id="AZ"></span></div>
+      </div>
+      
     </ons-page>
   </ons-template>
 
