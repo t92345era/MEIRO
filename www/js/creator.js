@@ -37,23 +37,23 @@ CellPosition.prototype.copy = function() {
 
 /**
  * 現在のセル位置から、指定されたオフセット位置に移動した新しいセル位置情報を取得する
- * @param {number} offset 移動方向
+ * @param {number} direction 移動方向
  * @param {number} count 移動マス数
  */
-CellPosition.prototype.move = function(offset, count) {
+CellPosition.prototype.move = function(direction, count) {
   var moveCellPosition = this.copy();
   var moveCount = 1;
   if (typeof count === "number") {
     moveCount = count; 
   }
 
-  if (offset == OFFSET.TOP) {
+  if (direction == OFFSET.TOP) {
     moveCellPosition.row -= moveCount;
-  } else if (offset == OFFSET.RIGHT) {
+  } else if (direction == OFFSET.RIGHT) {
     moveCellPosition.column += moveCount;
-  } else if (offset == OFFSET.BOTTOM) {
+  } else if (direction == OFFSET.BOTTOM) {
     moveCellPosition.row += moveCount;
-  } else if (offset == OFFSET.LEFT) {
+  } else if (direction == OFFSET.LEFT) {
     moveCellPosition.column -= moveCount;
   }
   return moveCellPosition;
@@ -73,10 +73,12 @@ var MeiroCreator = function(canvas) {
   this.data = [];
   this.lvl = 1;
   
-  this.bollPosition = { x: 0, y: 0, row: 0, column: 0 };
+  this.boll = { row: 0, column: 0, offsetX: 0, offsetY: 0 };
   this.masuSize = 0;
   this.masuSizeMini = 0;
   
+  //コントローラの初期化
+  this.controller = new GameController(this);
 };
 
 // 初期化
@@ -115,19 +117,41 @@ MeiroCreator.prototype.init = function() {
   }
   this.masuSizeMini = this.masuSize / 2;
 
+  //ボール位置の初期化
+  this.boll = { row: 0, column: 0, offsetX: 0, offsetY: 0 };
+
   //キャンパスをクリア
   this.clearCanvas();
 };
 
-// ゲーム開始
+/**
+ * ゲーム開始
+ */
 MeiroCreator.prototype.start = function() {
   if (this.isStart !== true) {
+
+    //スタート地点を探す
+    var isHit = false;
+    for (var i = 0; i < this.rowCount(); i++) {
+      for (var j = 0; j < this.columnCount(); j++) {
+        if (this.cellFlg(i,j) == FLG_START) {
+          isHit = true;
+          this.boll.row = i;
+          this.boll.column = j;
+          break;
+        }
+      }
+      if (isHit) break;
+    }
+
     this.isStart = true;
     this.loopFrame();    
   }
 };
 
-// ゲーム停止
+/**
+ * ゲーム停止
+ */
 MeiroCreator.prototype.stop = function() {
   
   if (this.isStart) {
@@ -136,18 +160,26 @@ MeiroCreator.prototype.stop = function() {
   }
 };
 
+/**
+ * フレームループ
+ */
 MeiroCreator.prototype.loopFrame = function() {
   var self = this;
   
   if (this.isStart !== true) {
+    //停止処理
+    self.draw();
     return;
   }
- 
-  //ループ処理
+
+  //ループ処理の再帰呼び出し
   requestAnimFrame(function() {
     self.loopFrame();
   });
-  
+
+  //コントローラのイベント処理
+  this.controller.doEvent();
+
   //描画処理
   self.draw();
   
@@ -394,6 +426,24 @@ MeiroCreator.prototype.clearCanvas = function() {
 };
 
 /**
+ * 指定されたセルの行インデックス対応する Y座標を取得
+ */
+MeiroCreator.prototype.rowToYPoint = function(row) {
+  var ypos = Math.floor(row / 2) * this.masuSize;
+  ypos += Math.floor((row + 1) / 2) * this.masuSizeMini;
+  return ypos;
+};
+
+/**
+ * 指定されたセルの列インデックス対応する X座標を取得
+ */
+MeiroCreator.prototype.columnToYPoint = function(column) {
+  var xpos = Math.floor(column / 2) * this.masuSize;
+  xpos += Math.floor((column + 1) / 2) * this.masuSizeMini;
+  return xpos;
+};
+
+/**
  * 画面に描画する
  */
 MeiroCreator.prototype.draw = function() {
@@ -424,13 +474,12 @@ MeiroCreator.prototype.draw = function() {
 
   //縦方向のループ
   for (var i = 0; i < this.rowCount(); i++) {
-    var height = (i % 2 != 0) ? masuSizeMini : masuSize; // 行の高さ
+    var height = this.getMasuHeight(i); // 行の高さ
     left = 0;
 
     //横方向のループ
     for (var j = 0; j < this.columnCount(); j++) {
-      //縦横幅設定
-      var width = (j % 2 != 0) ? masuSizeMini : masuSize;
+      var width = this.getMasuWidth(j); //横の幅
       
       if (this.cellFlg(i, j) == FLG_KABE) {
         drawRects.push({ top: top, left: left, width: width, height: height });
@@ -459,10 +508,17 @@ MeiroCreator.prototype.draw = function() {
   var maruSize = (masuSize / 2) - 2 < 3 ? 3 : (masuSize / 2) - 2;
 
   if (this.isStart) {
+    //ボールの座標計算
+    var bollXPos = this.columnToYPoint(this.boll.column);
+    var bollYPos = this.rowToYPoint(this.boll.row);
+    //座標をボールの中心点に移動し、オフセット加算
+    bollXPos += (masuSize / 2) + this.boll.offsetX;
+    bollYPos += (masuSize / 2) + this.boll.offsetY;
+
     this.ctx.fillStyle = '#922';
     ctx.beginPath();
-    ctx.arc(startRect.left  + (masuSize / 2), 
-      startRect.top + (masuSize / 2), 
+    ctx.arc(bollXPos, 
+      bollYPos, 
       maruSize, 
       0, Math.PI*2, false);
     ctx.fill();
@@ -481,10 +537,116 @@ MeiroCreator.prototype.draw = function() {
   
 };
 
+/**
+ * 指定列インデックスのマス幅を取得する
+ * @param {number} column
+ */
+MeiroCreator.prototype.getMasuWidth = function(column) {
+  return (column % 2 != 0) ? this.masuSizeMini : this.masuSize;
+};
+
+/**
+ * 指定列インデックスのマスの高さを取得する
+ * @param {number} row
+ */
+MeiroCreator.prototype.getMasuHeight = function(row) {
+  return (row % 2 != 0) ? this.masuSizeMini : this.masuSize;
+};
+
+/*************************************************************************************/
+
+// コントローラクラス
+var GameController = function(creator) {
+  this.creator = creator;
+};
+
+/**
+ * アニメーションループからよばれる、イベント処理メソッド
+ * 入力状態に応じてりゲーム動作を行う
+ */
+GameController.prototype.doEvent = function() {
+
+  var direction = -1;
+  if (input_key_buffer[KEYCODE.LEFT] === true) {
+    //左キーが押されている
+    direction = OFFSET.LEFT;
+  } else if (input_key_buffer[KEYCODE.TOP] === true) {
+    //上キーが押されている
+    direction = OFFSET.TOP;
+  } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
+    //右キーが押されている
+    direction = OFFSET.RIGHT;
+  } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
+    //下キーが押されている
+    direction = OFFSET.BOTTOM;
+  }
+
+  this.move(direction);
+};
+
+/**
+ * 移動
+ */
+GameController.prototype.move = function(direction) {
+
+  //指定方向に移動可能かチェック
+  if (!this.canMove(direction)) {
+    return;
+  }
+
+  var movePix = 1.5;
+  var cre = this.creator;
+
+  //指定方向へ移動
+  if (direction == OFFSET.TOP) {
+    cre.boll.offsetY -= movePix;
+  } else if (direction == OFFSET.RIGHT) {
+    cre.boll.offsetX += movePix;
+  } else if (direction == OFFSET.BOTTOM) {
+    cre.boll.offsetY += movePix;
+  } else if (direction == OFFSET.LEFT) {
+    cre.boll.offsetX -= movePix;
+  }
+
+//  24 = 12 =   11 * (-1 * 1)  
+
+  //セル移動判定
+  var w = cre.getMasuWidth(cre.boll.column);
+  var h = cre.getMasuWidth(cre.boll.row);
+  
+  if ( (w / 2) < Math.abs(cre.boll.offsetX) ) {
+    var signX = Math.sign(cre.boll.offsetX);
+    cre.boll.column += signX;
+    cre.boll.offsetX = (-1 * signX) * ((w / 2) - 1);
+    cre.boll.offsetX = -3;
+  }
+  if ( (h / 2) < Math.abs(cre.boll.offsetY) ) {
+    var signY = Math.sign(cre.boll.offsetY);
+    cre.boll.row += signY;
+    cre.boll.offsetY =  (-1 * signY) * ((h / 2) - 1);
+    console.log(this.creator.boll);
+  }
+  
+}
+
+/**
+ * 指定方向移動可能かをチェックし、結果を取得する
+ */
+GameController.prototype.canMove = function(direction) {
+  var pos = new CellPosition(this.creator.boll.row, this.creator.boll.column);
+  var flg = this.creator.cellFlg(pos.move(direction));
+  return flg != FLG_KABE;
+};
+
+
+/*************************************************************************************/
 
 var creator;
 
-
+/**
+ * 作成
+ * @param {number} lvl 
+ */
 function create(lvl) {
   creator.lvl = lvl;
   if ($("#bou").is(":checked")) {
@@ -494,15 +656,23 @@ function create(lvl) {
   }
 }
 
-
+/**
+ * start
+ */
 function startGame() {
   creator.start();
 }
 
+/**
+ * stop
+ */
 function stopGame() {
   creator.stop();
 }
 
+/**
+ * 描画ループ
+ */
 window.requestAnimFrame = (function(){
   return  window.requestAnimationFrame       ||
           window.webkitRequestAnimationFrame ||
@@ -511,7 +681,6 @@ window.requestAnimFrame = (function(){
             window.setTimeout(callback, 1000 / 60);
           };
 })();
-
 
 // キーボードの入力状態を記録する配列
 var input_key_buffer = new Array();
