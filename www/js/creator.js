@@ -97,6 +97,10 @@ var MeiroCreator = function(canvas) {
   
   //コントローラの初期化
   this.controller = new GameController(this);
+
+  //加速度センサーが使用可能か (true:使用、false:使用不可)
+  this.canUseAccelerometer = navigator.accelerometer !== undefined;
+  alert(this.canUseAccelerometer);
 };
 
 // 初期化
