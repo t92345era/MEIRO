@@ -72,9 +72,6 @@ var MeiroCreator = function(canvas) {
   this.C_HEIGHT = parseInt(canvas.height, 10);
   this.canvas = canvas;
   this.ctx = canvas.getContext('2d');
-
-  //ゲーム開始状態かのフラグ (true:開始中、false:停止中)
-  this.isStart = false;
   
   //マス数分の２次元配列 (0：通路、1：壁、2:スタート地点、3:ゴール地点)
   this.data = [];
@@ -100,7 +97,6 @@ var MeiroCreator = function(canvas) {
 
   //加速度センサーが使用可能か (true:使用、false:使用不可)
   this.canUseAccelerometer = navigator.accelerometer !== undefined;
-  alert(this.canUseAccelerometer);
 };
 
 // 初期化
@@ -147,52 +143,53 @@ MeiroCreator.prototype.init = function() {
   this.clearCanvas();
 };
 
-/**
- * ゲーム開始
- */
-MeiroCreator.prototype.start = function() {
-  if (this.isStart !== true) {
+// /**
+//  * ゲーム開始
+//  */
+// MeiroCreator.prototype.start = function() {
+//   if (this.isStart !== true) {
 
-    //スタート地点を探す
-    var isHit = false;
-    for (var i = 0; i < this.rowCount(); i++) {
-      for (var j = 0; j < this.columnCount(); j++) {
-        if (this.cellFlg(i,j) == FLG_START) {
-          isHit = true;
-          this.boll.column = j;
-          this.boll.row = i;
-          this.boll.posX = this.columnToXPoint(j) + (this.getMasuWidth(j) / 2);
-          this.boll.posY = this.rowToYPoint(j) + (this.getMasuWidth(i) / 2);
-          break;
-        }
-      }
-      if (isHit) break;
-    }
+//     //スタート地点を探す
+//     var isHit = false;
+//     for (var i = 0; i < this.rowCount(); i++) {
+//       for (var j = 0; j < this.columnCount(); j++) {
+//         if (this.cellFlg(i,j) == FLG_START) {
+//           isHit = true;
+//           this.boll.column = j;
+//           this.boll.row = i;
+//           this.boll.posX = this.columnToXPoint(j) + (this.getMasuWidth(j) / 2);
+//           this.boll.posY = this.rowToYPoint(j) + (this.getMasuWidth(i) / 2);
+//           break;
+//         }
+//       }
+//       if (isHit) break;
+//     }
 
-    this.isStart = true;
-    this.draw();
-    this.loopFrame();
-  }
-};
+//     this.isStart = true;
+//     this.draw();
+//     this.loopFrame();
+//   }
+// };
 
-/**
- * ゲーム停止
- */
-MeiroCreator.prototype.stop = function() {
+// /**
+//  * ゲーム停止
+//  */
+// MeiroCreator.prototype.stop = function() {
   
-  if (this.isStart) {
-    this.isStart = false;
-    this.loopFrame();
-  }
-};
+//   if (this.isStart) {
+//     this.isStart = false;
+//     this.loopFrame();
+//   }
+// };
 
 /**
  * フレームループ
  */
 MeiroCreator.prototype.loopFrame = function() {
+  
   var self = this;
   
-  if (this.isStart !== true) {
+  if (this.controller.isStart !== true) {
     //停止処理
     self.draw();
     return;
@@ -551,7 +548,7 @@ MeiroCreator.prototype.draw = function() {
     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
   });
 
-  if (this.isStart) {
+  if (this.controller.isStart) {
     // //ボールの座標計算
     var bollXPos = this.boll.posX;
     var bollYPos = this.boll.posY;
@@ -637,6 +634,92 @@ MeiroCreator.prototype.getMasuHeight = function(row) {
 // コントローラクラス
 var GameController = function(creator) {
   this.creator = creator;
+  //ゲーム開始状態かのフラグ (true:開始中、false:停止中)
+  this.isStart = false;
+  //加速度センサの監視ID
+  this.accelerometerWatchId = -1;
+  //加速度センサの各座標の加速度
+  this.amStartValue = { x : null, y: null, y: null };  //ゲーム開始持の値
+  this.amValue = { x : null, y: null, y: null };  //定間隔で取得した値
+};
+
+/**
+ * 開始処理
+ */
+GameController.prototype.start = function() {
+  
+  var cre = this.creator;
+
+  if (this.isStart !== true) {
+    
+    //スタート地点を探す
+    var isHit = false;
+    for (var i = 0; i < cre.rowCount(); i++) {
+      for (var j = 0; j < cre.columnCount(); j++) {
+        if (cre.cellFlg(i,j) == FLG_START) {
+          isHit = true;
+          cre.boll.column = j;
+          cre.boll.row = i;
+          cre.boll.posX = cre.columnToXPoint(j) + (cre.getMasuWidth(j) / 2);
+          cre.boll.posY = cre.rowToYPoint(j) + (cre.getMasuHeight(i) / 2);
+          break;
+        }
+      }
+      if (isHit) break;
+    }
+
+    //加速度センサが使用可能な端末の場合、定間隔で値を取得する
+    if (cre.canUseAccelerometer) {
+      var options = { frequency: 500 };
+      this.accelerometerWatchId = 
+        navigator.accelerometer.watchAcceleration(onSuccess, onError, options);
+    }
+
+    this.isStart = true;
+    cre.draw();
+    cre.loopFrame();
+
+  }
+};
+
+/**
+ * 停止処理
+ */
+GameController.prototype.stop = function() {
+  if (this.isStart) {
+    this.isStart = false;
+  }
+  //加速度センサの情報をクリア
+  if (this.accelerometerWatchId !== -1) {
+    navigator.accelerometer.clearWatch(this.accelerometerWatchId);
+    this.accelerometerWatchId = -1;
+  }
+  this.amStartValue = { x : null, y: null, y: null };
+  this.amValue = { x : null, y: null, y: null };
+};
+
+/**
+ * 加速度センサの加速度取得成功時の処理
+ */
+GameController.prototype.onAccelerometerSuccess =  function(acceleration) {
+
+  if (this.amStartValue.x == null) {
+    //初回取得値の保存
+    this.amStartValue.x = acceleration.x;
+    this.amStartValue.y = acceleration.y;
+    this.amStartValue.z = acceleration.z;
+  }
+  //取得時の値を保存
+  this.amValue.x = acceleration.x;
+  this.amValue.y = acceleration.y;
+  this.amValue.z = acceleration.z;
+};
+
+/**
+ * 加速度センサの加速度取得成功時の処理
+ */
+GameController.prototype.onAccelerometerError =  function() {
+  console.error("error onAccelerometerError!!");
 };
 
 /**
@@ -646,24 +729,55 @@ var GameController = function(creator) {
 GameController.prototype.doEvent = function() {
 
   var direction = -1;
-  if (input_key_buffer[KEYCODE.LEFT] === true) {
-    //左キーが押されている
-    direction = OFFSET.LEFT;
-  } else if (input_key_buffer[KEYCODE.TOP] === true) {
-    //上キーが押されている
-    direction = OFFSET.TOP;
-  } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
-    //右キーが押されている
-    direction = OFFSET.RIGHT;
-  } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
-    //下キーが押されている
-    direction = OFFSET.BOTTOM;
+
+  if (this.creator.canUseAccelerometer) {
+    //加速度センサがオンの場合
+    if (this.amStartValue.x != null) {
+
+      var flg = false;
+      if (this.amValue.y < -1) {
+        this.move(OFFSET.TOP);
+        flg = true;
+      }
+      if (this.amValue.y > 1) {
+        this.move(OFFSET.BOTTOM);
+        flg = true;
+      }
+      if (this.amValue.x < -1) {
+        this.move(OFFSET.LEFT);
+        flg = true;
+      }
+      if (this.amValue.x > 1) {
+        this.move(OFFSET.RIGHT);
+        flg = true;
+      }
+      return flg;
+    }
+
+  } else {
+    //加速度センサなし
+    
+    if (input_key_buffer[KEYCODE.LEFT] === true) {
+      //左キーが押されている
+      direction = OFFSET.LEFT;
+    } else if (input_key_buffer[KEYCODE.TOP] === true) {
+      //上キーが押されている
+      direction = OFFSET.TOP;
+    } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
+      //右キーが押されている
+      direction = OFFSET.RIGHT;
+    } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
+      //下キーが押されている
+      direction = OFFSET.BOTTOM;
+    }
+
+    if (direction != -1) {
+      this.move(direction);
+      return true;
+    }
   }
 
-  if (direction != -1) {
-    this.move(direction);
-    return true;
-  }
+
   
   return false;
 };
@@ -763,14 +877,14 @@ function create(lvl) {
  * start
  */
 function startGame() {
-  creator.start();
+  creator.controller.start();
 }
 
 /**
  * stop
  */
 function stopGame() {
-  creator.stop();
+  creator.controller.stop();
 }
 
 /**
