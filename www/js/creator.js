@@ -744,19 +744,19 @@ GameController.prototype.doEvent = function() {
     if (this.amStartValue.x != null) {
 
       var flg = false;
-      if (this.amValue.y < -1) {
+      if (this.amValue.y < -1.5) {
         this.move(OFFSET.TOP);
         flg = true;
       }
-      if (this.amValue.y > 1) {
+      if (this.amValue.y > 1.5) {
         this.move(OFFSET.BOTTOM);
         flg = true;
       }
-      if (this.amValue.x < -1) {
+      if (this.amValue.x < -1.5) {
         this.move(OFFSET.RIGHT);
         flg = true;
       }
-      if (this.amValue.x > 1) {
+      if (this.amValue.x > 1.5) {
         this.move(OFFSET.LEFT);
         flg = true;
       }
@@ -786,8 +786,6 @@ GameController.prototype.doEvent = function() {
     }
   }
 
-
-  
   return false;
 };
 
