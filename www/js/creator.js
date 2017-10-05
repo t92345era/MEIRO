@@ -99,6 +99,7 @@ var MeiroCreator = function(canvas) {
   this.canUseAccelerometer = navigator.accelerometer !== undefined;
 };
 
+
 // 初期化
 MeiroCreator.prototype.init = function() {
 
@@ -649,6 +650,7 @@ var GameController = function(creator) {
 GameController.prototype.start = function() {
   
   var cre = this.creator;
+  var self = this;
 
   if (this.isStart !== true) {
     
@@ -672,7 +674,14 @@ GameController.prototype.start = function() {
     if (cre.canUseAccelerometer) {
       var options = { frequency: 500 };
       this.accelerometerWatchId = 
-        navigator.accelerometer.watchAcceleration(onSuccess, onError, options);
+        navigator.accelerometer.watchAcceleration(
+          function(e) {
+            self.onAccelerometerSuccess(e);
+          }, 
+          function() {
+            self.onAccelerometerError();
+          }, 
+          options);
     }
 
     this.isStart = true;
@@ -744,11 +753,11 @@ GameController.prototype.doEvent = function() {
         flg = true;
       }
       if (this.amValue.x < -1) {
-        this.move(OFFSET.LEFT);
+        this.move(OFFSET.RIGHT);
         flg = true;
       }
       if (this.amValue.x > 1) {
-        this.move(OFFSET.RIGHT);
+        this.move(OFFSET.LEFT);
         flg = true;
       }
       return flg;
