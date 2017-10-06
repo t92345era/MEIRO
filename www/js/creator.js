@@ -5,6 +5,7 @@ var FLG_GOAL = 3;
 
 var MOVE_PIX = 1.5;
 
+
 var KISEKI_FLG_ON  = 1;
 var KISEKI_FLG_OFF = 0;
 
