@@ -723,7 +723,7 @@ GameController.prototype.onAccelerometerSuccess =  function(acceleration) {
     //初回取得値の保存
     //this.amStartValue.x = acceleration.x;
     this.amStartValue.x = 0;
-    this.amStartValue.y = 0;
+    this.amStartValue.y = acceleration.y;
     this.amStartValue.z = acceleration.z;
   }
   //取得時の値を保存
@@ -792,7 +792,7 @@ GameController.prototype.doEvent = function() {
   /**************************************/
   // 移動
   /**************************************/
-  if (moveX != 0 || moveY != 0) {
+  if (moveX != 0 || moveY != 0) { 
     return this.move(moveX, moveY);
   } else {
     return false;
