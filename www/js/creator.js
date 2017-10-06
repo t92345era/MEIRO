@@ -723,7 +723,7 @@ GameController.prototype.onAccelerometerSuccess =  function(acceleration) {
     //初回取得値の保存
     //this.amStartValue.x = acceleration.x;
     this.amStartValue.x = 0;
-    this.amStartValue.y = acceleration.y;
+    this.amStartValue.y = 0;
     this.amStartValue.z = acceleration.z;
   }
   //取得時の値を保存
@@ -799,20 +799,6 @@ GameController.prototype.doEvent = function() {
   }
 
   return false;
-};
-
-/**
- * 加速度センサから取得した値を２つ指定して、その差分値を取得する
- */
-GameController.prototype.diffAmValue = function(beforeValue, afterValue, baseValue) {
-
-  var b1 = beforeValue + baseValue;
-  var a1 = afterValue + baseValue;
-
-  if (Math.sign(beforeValue) == Math.sign(afterValue)) {
-    return afterValue - beforeValue;
-  }
-
 };
 
 /**
