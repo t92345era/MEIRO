@@ -5,8 +5,12 @@ var FLG_GOAL = 3;
 
 var MOVE_PIX = 1.5;
 
-var KISEKI_FLG_ON  = 1;
+//軌跡フラグ (0:未追加、1:通過済み)
 var KISEKI_FLG_OFF = 0;
+var KISEKI_FLG_ON  = 1;
+
+//加速度センサの取得間隔(ms)
+var TIMER_INTERVAL_MS = 500;
 
 var OFFSET = {
   TOP: 0,
@@ -102,6 +106,9 @@ var MeiroCreator = function(canvas) {
 
 // 初期化
 MeiroCreator.prototype.init = function() {
+
+  //ゲーム開始中であれば、停止
+  this.controller.stop();
 
   //配列初期化
   var masuCount;
@@ -672,7 +679,7 @@ GameController.prototype.start = function() {
 
     //加速度センサが使用可能な端末の場合、定間隔で値を取得する
     if (cre.canUseAccelerometer) {
-      var options = { frequency: 500 };
+      var options = { frequency: TIMER_INTERVAL_MS };
       this.accelerometerWatchId = 
         navigator.accelerometer.watchAcceleration(
           function(e) {
@@ -714,7 +721,8 @@ GameController.prototype.onAccelerometerSuccess =  function(acceleration) {
 
   if (this.amStartValue.x == null) {
     //初回取得値の保存
-    this.amStartValue.x = acceleration.x;
+    //this.amStartValue.x = acceleration.x;
+    this.amStartValue.x = 0;
     this.amStartValue.y = acceleration.y;
     this.amStartValue.z = acceleration.z;
   }
@@ -737,9 +745,48 @@ GameController.prototype.onAccelerometerError =  function() {
  */
 GameController.prototype.doEvent = function() {
 
-  var direction = -1;
+  var speedX = 0;
+  var speedY = 0;
 
+  /**************************************/
+  // X軸の移動方向、移動速度を計算
+  /**************************************/
   if (this.creator.canUseAccelerometer) {
+    //加速度センサがオンの場合
+    if ( Math.abs(this.amValue.x > 1) ) {
+      speedX = this.amStartValue.x + this.amValue.x * TIMER_INTERVAL_MS;
+    }
+  } else {
+    //キーボード入力
+    if (input_key_buffer[KEYCODE.LEFT] === true) {
+      speedX = 1000;
+    } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
+      speedX = -1000;
+    }
+  }
+
+  //X軸の移動ピクセル数
+  var moveX = speedX / 1000;
+
+  /**************************************/
+  // Y軸の移動方向、移動速度を計算
+  /**************************************/
+
+
+  //Y軸の移動ピクセル数
+  var moveY = speedY / 1000;
+
+  //移動
+  if (moveX != 0 || moveY != 0) {
+    return this.move(moveX, moveY);
+  } else {
+    return false;
+  }
+  
+
+/*
+  if (this.creator.canUseAccelerometer) {
+
     //加速度センサがオンの場合
     if (this.amStartValue.x != null) {
 
@@ -785,24 +832,46 @@ GameController.prototype.doEvent = function() {
       return true;
     }
   }
+  */
 
   return false;
 };
 
 /**
- * 移動
+ * 加速度センサから取得した値を２つ指定して、その差分値を取得する
  */
-GameController.prototype.move = function(direction) {
+GameController.prototype.diffAmValue = function(beforeValue, afterValue, baseValue) {
 
-  //指定方向に移動可能かチェック
-  if (!this.canMove(direction)) {
-    return;
+  var b1 = beforeValue + baseValue;
+  var a1 = afterValue + baseValue;
+
+  if (Math.sign(beforeValue) == Math.sign(afterValue)) {
+    return afterValue - beforeValue;
   }
 
-  var movePix = MOVE_PIX;
+};
+
+/**
+ * ボールを移動する
+ * @param {number} moveX X軸への移動ピクセル数
+ * @param {number} moveY Y軸への移動ピクセル数
+ * @return ボールの移動が出来た場合 true。
+ */
+GameController.prototype.move = function(moveX, moveY) {
+
+  //指定方向に移動可能かチェック
+  if (!this.canMove(moveX, moveY)) {
+   return;
+  }
+
+  //var movePix = MOVE_PIX;
   var cre = this.creator;
 
   //指定方向へ移動
+  cre.boll.posX += moveX;
+  cre.boll.posY += moveY;
+
+  /*
   if (direction == OFFSET.TOP) {
     cre.boll.posY -= movePix;
   } else if (direction == OFFSET.RIGHT) {
@@ -812,6 +881,7 @@ GameController.prototype.move = function(direction) {
   } else if (direction == OFFSET.LEFT) {
     cre.boll.posX -= movePix;
   }
+  */
 
   //現在のセル位置を退避
   var column = cre.boll.column;
@@ -820,44 +890,36 @@ GameController.prototype.move = function(direction) {
   //移動先セルの行・列インデックスを設定
   cre.boll.column = cre.XPointToColumn(cre.boll.posX);
   cre.boll.row = cre.YPointToRow(cre.boll.posY); 
+  console.log(cre.boll);
 
   //セル位置が変わったら、移動前セルを通過済みに設定する
   if (column != cre.boll.column || row != cre.boll.row) {
     cre.setKisekiFlg(row, column, KISEKI_FLG_ON);
   }
 
+  //ボールの移動を行った場合、true を返却
+  return moveX != 0 || moveY != 0;
 }
 
 /**
  * 指定方向移動可能かをチェックし、結果を取得する
+ * @param {number} moveX X軸への移動ピクセル数
+ * @param {number} moveY Y軸への移動ピクセル数
+ * @return ボールの移動が出来る場合 true。
  */
-GameController.prototype.canMove = function(direction) {
+GameController.prototype.canMove = function(moveX, moveY) {
   var cre = this.creator;
-
-  var movePix = MOVE_PIX;
-  var xpos = -1, ypos = -1;
   
-  //指定方向へ移動
-  if (direction == OFFSET.TOP) {
-    ypos = cre.boll.posY - cre.bollRadius - movePix;
-  } else if (direction == OFFSET.RIGHT) {
-    xpos = cre.boll.posX + cre.bollRadius + movePix;
-  } else if (direction == OFFSET.BOTTOM) {
-    ypos = cre.boll.posY + cre.bollRadius + movePix;
-  } else if (direction == OFFSET.LEFT) {
-    xpos = cre.boll.posX - cre.bollRadius - movePix;
-  }
+  //指定方向へ移動後の座標を計算
+  var posX = cre.boll.posX + moveX;
+  var posY = cre.boll.posX + moveY;
 
-  var flg;
-  if (xpos != -1) {
-     var column = cre.XPointToColumn(xpos);
-     flg = cre.cellFlg(cre.boll.row, column);
-  }
+  //移動後の行・列インデックスを設定
+  var row = cre.YPointToRow(posY + ( moveY > 0 ? cre.bollRadius : (-1) * cre.bollRadius));
+  var column = cre.XPointToColumn(posX + ( moveX > 0 ? cre.bollRadius : (-1) * cre.bollRadius));
 
-  if (ypos != -1) {
-    var row = cre.YPointToRow(ypos);
-    flg = cre.cellFlg(row, cre.boll.column);
- }
+  //移動後セルのフラグを取得
+  var flg = cre.cellFlg(row, column);
 
   return flg != FLG_KABE;
 };
