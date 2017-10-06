@@ -145,7 +145,7 @@ MeiroCreator.prototype.init = function() {
   this.boll = { row: 0, column: 0, posX: 0, posY: 0 };
 
   //ボールの半径
-  this.bollRadius = (this.masuSize / 2) - 2 < 3 ? 3 : (this.masuSize / 2) - 2;
+  this.bollRadius = (this.masuSize / 2) - 3 < 3 ? 3 : (this.masuSize / 2) - 3;
 
   //キャンパスをクリア
   this.clearCanvas();
@@ -772,68 +772,31 @@ GameController.prototype.doEvent = function() {
   /**************************************/
   // Y軸の移動方向、移動速度を計算
   /**************************************/
-
+  if (this.creator.canUseAccelerometer) {
+    //加速度センサがオンの場合
+    if ( Math.abs(this.amValue.y) > 1 ) {
+      speedY = (this.amValue.y - this.amStartValue.y) * TIMER_INTERVAL_MS;
+    }
+  } else {
+    //キーボード入力
+    if (input_key_buffer[KEYCODE.TOP] === true) {
+      speedY = -1000;
+    } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
+      speedY = 1000;
+    }
+  }
 
   //Y軸の移動ピクセル数
   var moveY = speedY / 1000;
 
-  //移動
+  /**************************************/
+  // 移動
+  /**************************************/
   if (moveX != 0 || moveY != 0) {
-    return this.move(moveX, 0);
+    return this.move(moveX, moveY);
   } else {
     return false;
   }
-  
-
-/*
-  if (this.creator.canUseAccelerometer) {
-
-    //加速度センサがオンの場合
-    if (this.amStartValue.x != null) {
-
-      var flg = false;
-      if (this.amValue.y < -1.5) {
-        this.move(OFFSET.TOP);
-        flg = true;
-      }
-      if (this.amValue.y > 1.5) {
-        this.move(OFFSET.BOTTOM);
-        flg = true;
-      }
-      if (this.amValue.x < -1.5) {
-        this.move(OFFSET.RIGHT);
-        flg = true;
-      }
-      if (this.amValue.x > 1.5) {
-        this.move(OFFSET.LEFT);
-        flg = true;
-      }
-      return flg;
-    }
-
-  } else {
-    //加速度センサなし
-    
-    if (input_key_buffer[KEYCODE.LEFT] === true) {
-      //左キーが押されている
-      direction = OFFSET.LEFT;
-    } else if (input_key_buffer[KEYCODE.TOP] === true) {
-      //上キーが押されている
-      direction = OFFSET.TOP;
-    } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
-      //右キーが押されている
-      direction = OFFSET.RIGHT;
-    } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
-      //下キーが押されている
-      direction = OFFSET.BOTTOM;
-    }
-
-    if (direction != -1) {
-      this.move(direction);
-      return true;
-    }
-  }
-  */
 
   return false;
 };
@@ -903,11 +866,15 @@ GameController.prototype.canMove = function(moveX, moveY) {
   var posY = cre.boll.posY + moveY;
 
   //移動後の行・列インデックスを設定
-  var row = cre.YPointToRow(posY + ( moveY > 0 ? cre.bollRadius : (-1) * cre.bollRadius));
-  var column = cre.XPointToColumn(posX + ( moveX > 0 ? cre.bollRadius : (-1) * cre.bollRadius));
+  var row = cre.YPointToRow(posY + 
+    ( moveY > 0 ? cre.bollRadius : moveY == 0 ? 0 : (-1) * cre.bollRadius));
+  var column = cre.XPointToColumn(posX + 
+    ( moveX > 0 ? cre.bollRadius : moveX == 0 ? 0 : (-1) * cre.bollRadius));
 
   //移動後セルのフラグを取得
   var flg = cre.cellFlg(row, column);
+
+  $("#DEBUG").text("row=" + row + ", column=" + column);
 
   return flg != FLG_KABE;
 };
