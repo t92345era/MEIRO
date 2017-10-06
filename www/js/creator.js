@@ -10,7 +10,7 @@ var KISEKI_FLG_OFF = 0;
 var KISEKI_FLG_ON  = 1;
 
 //加速度センサの取得間隔(ms)
-var TIMER_INTERVAL_MS = 500;
+var TIMER_INTERVAL_MS = 300;
 
 var OFFSET = {
   TOP: 0,
@@ -34,7 +34,7 @@ var KEYCODE = {
 var CellPosition = function(row, column) {
   this.row = row;
   this.column = column;
-}
+};
 
 /**
  * 現在のセル位置情報をコピーした新しいセル位置情報を取得する
@@ -719,7 +719,7 @@ GameController.prototype.stop = function() {
  */
 GameController.prototype.onAccelerometerSuccess =  function(acceleration) {
 
-  if (this.amStartValue.x == null) {
+  if (this.amStartValue.x === null) {
     //初回取得値の保存
     //this.amStartValue.x = acceleration.x;
     this.amStartValue.x = 0;
@@ -753,8 +753,8 @@ GameController.prototype.doEvent = function() {
   /**************************************/
   if (this.creator.canUseAccelerometer) {
     //加速度センサがオンの場合
-    if ( Math.abs(this.amValue.x > 1) ) {
-      speedX = this.amStartValue.x + this.amValue.x * TIMER_INTERVAL_MS;
+    if ( Math.abs(this.amValue.x) > 1 ) {
+      speedX = (this.amValue.x - this.amStartValue.x) * TIMER_INTERVAL_MS;
     }
   } else {
     //キーボード入力
@@ -766,7 +766,8 @@ GameController.prototype.doEvent = function() {
   }
 
   //X軸の移動ピクセル数
-  var moveX = speedX / 1000;
+  var moveX = (-1 * speedX) / 1000;
+  $("#AX").text(moveX);
 
   /**************************************/
   // Y軸の移動方向、移動速度を計算
@@ -778,7 +779,7 @@ GameController.prototype.doEvent = function() {
 
   //移動
   if (moveX != 0 || moveY != 0) {
-    return this.move(moveX, moveY);
+    return this.move(moveX, 0);
   } else {
     return false;
   }
@@ -871,18 +872,6 @@ GameController.prototype.move = function(moveX, moveY) {
   cre.boll.posX += moveX;
   cre.boll.posY += moveY;
 
-  /*
-  if (direction == OFFSET.TOP) {
-    cre.boll.posY -= movePix;
-  } else if (direction == OFFSET.RIGHT) {
-    cre.boll.posX += movePix;
-  } else if (direction == OFFSET.BOTTOM) {
-    cre.boll.posY += movePix;
-  } else if (direction == OFFSET.LEFT) {
-    cre.boll.posX -= movePix;
-  }
-  */
-
   //現在のセル位置を退避
   var column = cre.boll.column;
   var row = cre.boll.row;
@@ -890,7 +879,6 @@ GameController.prototype.move = function(moveX, moveY) {
   //移動先セルの行・列インデックスを設定
   cre.boll.column = cre.XPointToColumn(cre.boll.posX);
   cre.boll.row = cre.YPointToRow(cre.boll.posY); 
-  console.log(cre.boll);
 
   //セル位置が変わったら、移動前セルを通過済みに設定する
   if (column != cre.boll.column || row != cre.boll.row) {
@@ -912,7 +900,7 @@ GameController.prototype.canMove = function(moveX, moveY) {
   
   //指定方向へ移動後の座標を計算
   var posX = cre.boll.posX + moveX;
-  var posY = cre.boll.posX + moveY;
+  var posY = cre.boll.posY + moveY;
 
   //移動後の行・列インデックスを設定
   var row = cre.YPointToRow(posY + ( moveY > 0 ? cre.bollRadius : (-1) * cre.bollRadius));
