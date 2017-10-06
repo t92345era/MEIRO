@@ -810,16 +810,16 @@ GameController.prototype.doEvent = function() {
 GameController.prototype.move = function(moveX, moveY) {
 
   //指定方向に移動可能かチェック
-  if (!this.canMove(moveX, moveY)) {
-   return;
+  var ckResult = this.canMove(moveX, moveY);
+  if (ckResult == "NG") {
+    return false;
   }
 
-  //var movePix = MOVE_PIX;
   var cre = this.creator;
 
   //指定方向へ移動
-  cre.boll.posX += moveX;
-  cre.boll.posY += moveY;
+  cre.boll.posX += ((ckResult == "OK" || ckResult == "X_OK") ? moveX : 0);
+  cre.boll.posY += (ckResult == "OK" || ckResult == "Y_OK") ? moveY : 0;
 
   //現在のセル位置を退避
   var column = cre.boll.column;
@@ -835,14 +835,14 @@ GameController.prototype.move = function(moveX, moveY) {
   }
 
   //ボールの移動を行った場合、true を返却
-  return moveX != 0 || moveY != 0;
+  return true;
 }
 
 /**
  * 指定方向移動可能かをチェックし、結果を取得する
  * @param {number} moveX X軸への移動ピクセル数
  * @param {number} moveY Y軸への移動ピクセル数
- * @return ボールの移動が出来る場合 true。
+ * @return NG:移動不可、OK:移動可、X_OK:X軸方向へのみ移動可、Y_OK:Y軸方向へのみ移動可
  */
 GameController.prototype.canMove = function(moveX, moveY) {
   var cre = this.creator;
@@ -860,9 +860,17 @@ GameController.prototype.canMove = function(moveX, moveY) {
   //移動後セルのフラグを取得
   var flg = cre.cellFlg(row, column);
 
-  $("#DEBUG").text("row=" + row + ", column=" + column);
-
-  return flg != FLG_KABE;
+  if (flg == FLG_KABE) {
+    //X軸方向へのみ移動可能か検証
+    if (cre.cellFlg(cre.boll.row, column) != FLG_KABE) {
+      return "X_OK";
+    }
+    //Y軸方向へのみ移動可能か検証
+    if (cre.cellFlg(row, cre.boll.column) != FLG_KABE) {
+      return "Y_OK";
+    }
+  }
+  return flg != FLG_KABE ? "OK" : "NG";
 };
 
 
