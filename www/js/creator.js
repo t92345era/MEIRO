@@ -846,16 +846,84 @@ GameController.prototype.move = function(moveX, moveY) {
  */
 GameController.prototype.canMove = function(moveX, moveY) {
   var cre = this.creator;
-  
-  //指定方向へ移動後の座標を計算
-  var posX = cre.boll.posX + moveX;
-  var posY = cre.boll.posY + moveY;
+  var lst = [];
+
+  // X軸
+  if (moveX > 0) {
+    lst.push(45);
+    lst.push(0);
+    lst.push(315);
+  } else if (moveX < 0) {
+    lst.push(135);
+    lst.push(180);
+    lst.push(225);
+  }
+
+  // Y軸
+  if (moveY > 0) {
+    lst.push(225);
+    lst.push(270);
+    lst.push(315);
+  } else if (moveY < 0) {
+    lst.push(135);
+    lst.push(90);
+    lst.push(45);
+  }
+
+  //重複除去
+  var checkAngle = lst.filter(function (v, i, s) {
+    return s.indexOf(v) === i;
+  });
+
+  var result = "OK";
+
+  //三角関数を用いて、各角度の x,y座標を求めて、壁衝突判定を行う
+  for (var i = 0; i < checkAngle.length; i++) {
+
+    //ラジアン値
+    var radian = Math.PI/180 * checkAngle[i];
+    var cos = cre.bollRadius * Math.cos(radian);
+    var sin = cre.bollRadius * (Math.sin(radian) * -1);
+
+    //x,y座標を計算
+    var posX = cre.boll.posX + cos;
+    var posY = cre.boll.posY + sin;
+
+    //行・列インデックス算出
+    var column = cre.XPointToColumn(posX);
+    var row = cre.YPointToRow(posY);
+
+    //フラグを取得
+    var flg = cre.cellFlg(row, column);
+    if (flg == FLG_KABE) {
+      result = "NG";
+    }
+  }
+
+  //縦横同時移動で、移動不可と判定された場合、
+  //縦だけ、横だけでも移動できないかチェックする
+  if (moveX != 0 && moveY != 0) {
+    //縦方向
+    if (this.canMove(0, moveY) == "OK") {
+      return "Y_OK";
+    }
+    //横方向
+    if (this.canMove(moveX, 0) == "OK") {
+      return "X_OK";
+    }
+  }
+
+  //結果を返却
+  return result;
+
+  /*
 
   //移動後の行・列インデックスを設定
   var row = cre.YPointToRow(posY + 
     ( moveY > 0 ? cre.bollRadius : moveY == 0 ? 0 : (-1) * cre.bollRadius));
   var column = cre.XPointToColumn(posX + 
     ( moveX > 0 ? cre.bollRadius : moveX == 0 ? 0 : (-1) * cre.bollRadius));
+  
 
   //移動後セルのフラグを取得
   var flg = cre.cellFlg(row, column);
@@ -871,6 +939,7 @@ GameController.prototype.canMove = function(moveX, moveY) {
     }
   }
   return flg != FLG_KABE ? "OK" : "NG";
+  */
 };
 
 
