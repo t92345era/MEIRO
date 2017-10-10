@@ -649,6 +649,11 @@ var GameController = function(creator) {
   //加速度センサの各座標の加速度
   this.amStartValue = { x : null, y: null, y: null };  //ゲーム開始持の値
   this.amValue = { x : null, y: null, y: null };  //定間隔で取得した値
+
+  //X座標の加速度
+  this.accelerationX = 0;
+  //Y座標の加速度
+  this.accelerationY = 0;
 };
 
 /**
@@ -692,6 +697,8 @@ GameController.prototype.start = function() {
     }
 
     this.isStart = true;
+    this.accelerationX = 0;
+    this.accelerationY = 0;
     cre.draw();
     cre.loopFrame();
 
@@ -759,11 +766,23 @@ GameController.prototype.doEvent = function() {
   } else {
     //キーボード入力
     if (input_key_buffer[KEYCODE.LEFT] === true) {
+      //左キー押下
       speedX = 1000;
+      this.accelerationX = Math.min(this.accelerationX + 0.1, 3);
     } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
+      //右キー押下
       speedX = -1000;
+      this.accelerationX = Math.max(this.accelerationX - 0.1, -3);
+    } else {
+      //横方向へのキー押下なし
+      if (this.accelerationX != 0) {
+        this.accelerationX += (this.accelerationX > 0 ? -0.1 : 0.1);
+      }
     }
   }
+
+  //加速度を加味
+  speedX += this.accelerationX * 1000;
 
   //X軸の移動ピクセル数
   var moveX = (-1 * speedX) / 1000;
@@ -780,11 +799,23 @@ GameController.prototype.doEvent = function() {
   } else {
     //キーボード入力
     if (input_key_buffer[KEYCODE.TOP] === true) {
+      //上キー押下
       speedY = -1000;
+      this.accelerationY = Math.max(this.accelerationY - 0.1, -3);
     } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
+      //下キー押下
       speedY = 1000;
+      this.accelerationY = Math.min(this.accelerationY + 0.1, 3);
+    } else {
+      //縦方向へのキー押下なし
+      if (this.accelerationY != 0) {
+        this.accelerationY += (this.accelerationY > 0 ? -0.1 : 0.1);
+      }
     }
   }
+
+  //加速度を加味
+  speedY += this.accelerationY * 1000;
 
   //Y軸の移動ピクセル数
   var moveY = speedY / 1000;
@@ -848,26 +879,25 @@ GameController.prototype.canMove = function(moveX, moveY) {
   var cre = this.creator;
   var lst = [];
 
+  var fnAdd = function(centerAngle) {
+    for (var a = -1; a <= 1; a++) {
+      var angle = centerAngle + (45 * a);
+      lst.push(angle < 0 ? 360 + angle : angle);
+    }
+  };
+
   // X軸
   if (moveX > 0) {
-    lst.push(45);
-    lst.push(0);
-    lst.push(315);
+    fnAdd(0);
   } else if (moveX < 0) {
-    lst.push(135);
-    lst.push(180);
-    lst.push(225);
+    fnAdd(180);
   }
 
   // Y軸
   if (moveY > 0) {
-    lst.push(225);
-    lst.push(270);
-    lst.push(315);
+    fnAdd(270);
   } else if (moveY < 0) {
-    lst.push(135);
-    lst.push(90);
-    lst.push(45);
+    fnAdd(90);
   }
 
   //重複除去
@@ -902,7 +932,7 @@ GameController.prototype.canMove = function(moveX, moveY) {
 
   //縦横同時移動で、移動不可と判定された場合、
   //縦だけ、横だけでも移動できないかチェックする
-  if (moveX != 0 && moveY != 0) {
+  if (moveX != 0 && moveY != 0 && result == "NG") {
     //縦方向
     if (this.canMove(0, moveY) == "OK") {
       return "Y_OK";
@@ -915,31 +945,6 @@ GameController.prototype.canMove = function(moveX, moveY) {
 
   //結果を返却
   return result;
-
-  /*
-
-  //移動後の行・列インデックスを設定
-  var row = cre.YPointToRow(posY + 
-    ( moveY > 0 ? cre.bollRadius : moveY == 0 ? 0 : (-1) * cre.bollRadius));
-  var column = cre.XPointToColumn(posX + 
-    ( moveX > 0 ? cre.bollRadius : moveX == 0 ? 0 : (-1) * cre.bollRadius));
-  
-
-  //移動後セルのフラグを取得
-  var flg = cre.cellFlg(row, column);
-
-  if (flg == FLG_KABE) {
-    //X軸方向へのみ移動可能か検証
-    if (cre.cellFlg(cre.boll.row, column) != FLG_KABE) {
-      return "X_OK";
-    }
-    //Y軸方向へのみ移動可能か検証
-    if (cre.cellFlg(row, cre.boll.column) != FLG_KABE) {
-      return "Y_OK";
-    }
-  }
-  return flg != FLG_KABE ? "OK" : "NG";
-  */
 };
 
 
