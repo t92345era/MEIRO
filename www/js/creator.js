@@ -761,8 +761,15 @@ GameController.prototype.doEvent = function() {
   if (this.creator.canUseAccelerometer) {
     //加速度センサがオンの場合
     if ( Math.abs(this.amValue.x - this.amStartValue.x) > 1 ) {
-      speedX = (this.amValue.x - this.amStartValue.x) * TIMER_INTERVAL_MS;
+      //speedX = (this.amValue.x - this.amStartValue.x) * TIMER_INTERVAL_MS;
+      speedX = 1000;
+      this.accelerationX += (this.amValue.x / 30);
+      this.accelerationX = Math.max(Math.min(this.accelerationX, 3), -3);
+    } else {
+      this.accelerationX += (this.accelerationX > 0 ? -0.1 : 0.1);
     }
+
+    $("#DEBUG").text("accelerationX:" + this.accelerationX);
   } else {
     //キーボード入力
     if (input_key_buffer[KEYCODE.LEFT] === true) {
@@ -795,6 +802,10 @@ GameController.prototype.doEvent = function() {
     //加速度センサがオンの場合
     if ( Math.abs(this.amValue.y - this.amStartValue.y) > 1 ) {
       speedY = (this.amValue.y - this.amStartValue.y) * TIMER_INTERVAL_MS;
+      this.accelerationY += (this.amValue.y / 30);
+      this.accelerationY = Math.max(Math.min(this.accelerationY, 3), -3);
+    } else {
+      this.accelerationY += (this.accelerationY > 0 ? -0.1 : 0.1);
     }
   } else {
     //キーボード入力
