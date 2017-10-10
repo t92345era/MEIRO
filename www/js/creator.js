@@ -753,7 +753,7 @@ GameController.prototype.doEvent = function() {
   /**************************************/
   if (this.creator.canUseAccelerometer) {
     //加速度センサがオンの場合
-    if ( Math.abs(this.amValue.x) > 1 ) {
+    if ( Math.abs(this.amValue.x - this.amStartValue.x) > 1 ) {
       speedX = (this.amValue.x - this.amStartValue.x) * TIMER_INTERVAL_MS;
     }
   } else {
@@ -774,7 +774,7 @@ GameController.prototype.doEvent = function() {
   /**************************************/
   if (this.creator.canUseAccelerometer) {
     //加速度センサがオンの場合
-    if ( Math.abs(this.amValue.y) > 1 ) {
+    if ( Math.abs(this.amValue.y - this.amStartValue.y) > 1 ) {
       speedY = (this.amValue.y - this.amStartValue.y) * TIMER_INTERVAL_MS;
     }
   } else {
