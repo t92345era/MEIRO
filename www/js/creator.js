@@ -106,7 +106,7 @@ var MeiroCreator = function(canvas) {
 
 // 初期化
 MeiroCreator.prototype.init = function() {
-
+ 
   //ゲーム開始中であれば、停止
   this.controller.stop();
 
