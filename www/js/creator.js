@@ -101,10 +101,6 @@ var MeiroCreator = function(canvas) {
 
   //加速度センサーが使用可能か (true:使用、false:使用不可)
   this.canUseAccelerometer = navigator.accelerometer !== undefined;
-
-  //ボール画像
-  this.bollImage = new Image();
-  this.bollImage.src = "css/img/boll.png";
 };
 
 
@@ -561,17 +557,17 @@ MeiroCreator.prototype.draw = function() {
   });
 
   if (this.controller.isStart) {
-
-    //ボールの座標計算
+    // //ボールの座標計算
     var bollXPos = this.boll.posX;
     var bollYPos = this.boll.posY;
 
-    /* 画像を描画 */
-    ctx.drawImage(this.bollImage, 
-      bollXPos - this.bollRadius, 
-      bollYPos - this.bollRadius, 
-      this.bollRadius * 2, 
-      this.bollRadius * 2);
+    this.ctx.fillStyle = '#922';
+    ctx.beginPath();
+    ctx.arc(bollXPos, 
+      bollYPos, 
+      this.bollRadius, 
+      0, Math.PI*2, false);
+    ctx.fill();
   }
 
   //ゴール地点
@@ -773,6 +769,7 @@ GameController.prototype.doEvent = function() {
       this.accelerationX += (this.accelerationX > 0 ? -0.1 : 0.1);
     }
 
+    $("#DEBUG").text("accelerationX:" + this.accelerationX);
   } else {
     //キーボード入力
     if (input_key_buffer[KEYCODE.LEFT] === true) {
