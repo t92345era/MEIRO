@@ -18,11 +18,8 @@
     ons.ready(function() {
       console.log("Onsen UI is ready!");
       
-      var canvas = document.querySelector('#meiroCanvas');
-      if (canvas !== undefined) {
-        creator = new MeiroCreator(canvas);
-        create(1);
-      }
+      creator = new MeiroCreator(500, 500);
+      create(1);
       
       //加速度センサーを設定
       var options = { frequency: 500 };  // Update every 3 seconds
@@ -86,10 +83,8 @@
           Main
         </div>
       </ons-toolbar>
-      <div>
-        <canvas id="meiroCanvas" width="400px" 
-          style="" height="400px">
-        </canvas>
+      <div id="renderContainer">
+
       </div>
       <div style="border:1px solid #999; padding:5px;" >
         <label>
