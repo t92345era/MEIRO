@@ -19,11 +19,14 @@
   }
 </style>
 <script src="components/monaca-jquery/jquery.js"></script>
+<script src="js/three.min.js"></script>
+<script src="js/CanvasRenderer.js"></script>
+<script src="js/Projector.js"></script>
 <script src="js/creator.js"></script>
 <script>
   $(function() {
     var canvas = document.querySelector('#meiroCanvas');
-    creator = new MeiroCreator(canvas);
+    creator = new MeiroCreator(500, 500);
     create(1);
   });
 
@@ -31,9 +34,11 @@
 
 </head>
 <body>
-  <div>
+  <div id="renderContainer">
+    <!--
     <canvas id="meiroCanvas"  width="500px" height="500px">
     </canvas>
+  -->
   </div>
   <div style="border:1px solid #999; padding:5px;" >
     <label>
@@ -57,7 +62,7 @@
   <div>
     <span>speedX:<span id="AX"></span></span>
     <span>, speedY:<span id="AY"></span></span>
-    <div>DEBUG:<span id="DEBUG"></span></div>
+    <span>DEBUG:<span id="DEBUG"></span></span>
   </div>
 </body>
 </html>

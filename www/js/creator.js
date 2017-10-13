@@ -71,11 +71,32 @@ CellPosition.prototype.move = function(direction, count) {
 /*************************************************************************************/
 
 // コンストラクタ
-var MeiroCreator = function(canvas) {
-  this.C_WIDTH = parseInt(canvas.width, 10);
-  this.C_HEIGHT = parseInt(canvas.height, 10);
-  this.canvas = canvas;
-  this.ctx = canvas.getContext('2d');
+var MeiroCreator = function(width, height) {
+  this.C_WIDTH = width;
+  this.C_HEIGHT = height;
+
+  //this.canvas = canvas;
+  //this.ctx = canvas.getContext('2d');
+
+  //THREE.jsのレンダラを初期化
+  this.renderer = new THREE.CanvasRenderer();
+  this.renderer.setSize( this.C_WIDTH, this.C_HEIGHT );
+  this.renderer.setClearColor(0x444444, 1.0);
+  document.getElementById("renderContainer").appendChild( this.renderer.domElement );
+
+  //THREE.jsの シーン、カメラを初期化
+  this.scene = new THREE.Scene();
+  var fov    = 90;
+  var aspect = width / height;
+  var near   = 1;
+  var far    = 1000;
+  this.camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
+  this.camera.position.set( 0, 250, 270 );
+  this.camera.rotation.order = "ZYX"
+  this.camera.rotation.x = -1.3;
+
+  //ゲーム盤の左上の座標
+  this.topLeftAxis = { x: -210, y: 0, z: -70 };
   
   //マス数分の２次元配列 (0：通路、1：壁、2:スタート地点、3:ゴール地点)
   this.data = [];
@@ -85,9 +106,8 @@ var MeiroCreator = function(canvas) {
 
   //ゲームレベル
   this.lvl = 1;
-  
   //ボールの現在位置を格納するオブジェクト
-  this.boll = { row: 0, column: 0, posX: 0, posY: 0 };
+  this.boll = { row: 0, column: 0, posX: 0, posY: 0, posZ: 0, object: null };
   //ボールの半径
   this.bollRadius = 0;
 
@@ -103,8 +123,8 @@ var MeiroCreator = function(canvas) {
   this.canUseAccelerometer = navigator.accelerometer !== undefined;
 
   //ボール画像
-  this.bollImage = new Image();
-  this.bollImage.src = "css/img/boll.png";
+  //this.bollImage = new Image();
+  //this.bollImage.src = "css/img/boll.png";
 };
 
 
@@ -139,14 +159,14 @@ MeiroCreator.prototype.init = function() {
   }
   
   //１マスのサイズ(px)を計測する
-  this.masuSize = (this.C_HEIGHT * 1.238) / this.rowCount();
+  this.masuSize = ((this.C_HEIGHT-50) * 1.238) / this.rowCount();
   if ((this.C_WIDTH * 1.238)/ this.columnCount() < this.masuSize) {
-    this.masuSize = (this.C_WIDTH * 1.238) / this.columnCount();
+    this.masuSize = ((this.C_WIDTH-50) * 1.238) / this.columnCount();
   }
   this.masuSizeMini = this.masuSize / 2;
 
   //ボール位置の初期化
-  this.boll = { row: 0, column: 0, posX: 0, posY: 0 };
+  this.boll = { row: 0, column: 0, posX: 0, posY: 0, posZ: 0, object: null };
 
   //ボールの半径
   this.bollRadius = (this.masuSize / 2) - 3 < 3 ? 3 : (this.masuSize / 2) - 3;
@@ -154,45 +174,6 @@ MeiroCreator.prototype.init = function() {
   //キャンパスをクリア
   this.clearCanvas();
 };
-
-// /**
-//  * ゲーム開始
-//  */
-// MeiroCreator.prototype.start = function() {
-//   if (this.isStart !== true) {
-
-//     //スタート地点を探す
-//     var isHit = false;
-//     for (var i = 0; i < this.rowCount(); i++) {
-//       for (var j = 0; j < this.columnCount(); j++) {
-//         if (this.cellFlg(i,j) == FLG_START) {
-//           isHit = true;
-//           this.boll.column = j;
-//           this.boll.row = i;
-//           this.boll.posX = this.columnToXPoint(j) + (this.getMasuWidth(j) / 2);
-//           this.boll.posY = this.rowToYPoint(j) + (this.getMasuWidth(i) / 2);
-//           break;
-//         }
-//       }
-//       if (isHit) break;
-//     }
-
-//     this.isStart = true;
-//     this.draw();
-//     this.loopFrame();
-//   }
-// };
-
-// /**
-//  * ゲーム停止
-//  */
-// MeiroCreator.prototype.stop = function() {
-  
-//   if (this.isStart) {
-//     this.isStart = false;
-//     this.loopFrame();
-//   }
-// };
 
 /**
  * フレームループ
@@ -218,6 +199,7 @@ MeiroCreator.prototype.loopFrame = function() {
   if (result) {
     //描画処理
     self.draw();
+    //this.renderer.render( this.scene, this.camera );
   }
 
 }
@@ -392,7 +374,7 @@ MeiroCreator.prototype.bouTaoshi = function() {
   this.setCellFlg(this.rowCount() - 3, this.columnCount() - 3, FLG_GOAL);
 
   //画面描画
-  this.draw();
+  this.create3dObjects();
 };
 
 
@@ -478,74 +460,83 @@ MeiroCreator.prototype.anahoriHou = function() {
   this.setCellFlg(this.rowCount() - 3, this.columnCount() - 3, FLG_GOAL);
 
   //結果を画面に描画する
-  this.draw();
+  this.create3dObjects();
 };
 
 /**
  * キャンパスをクリアする
  */
 MeiroCreator.prototype.clearCanvas = function() {
-  this.ctx.clearRect(0, 0, this.C_WIDTH, this.C_HEIGHT);
+  //this.ctx.clearRect(0, 0, this.C_WIDTH, this.C_HEIGHT);
+  while(this.scene.children.length > 0){ 
+    this.scene.remove(this.scene.children[0]); 
+  }
 };
 
 /**
- * 画面に描画する
+ * ゲームに 3Dオブジェクトを配置する
  */
-MeiroCreator.prototype.draw = function() {
+MeiroCreator.prototype.create3dObjects = function() {
 
-  console.log("draw!!");
+  console.log("create3dObjects!!");
 
-  var fillColorHex = '#FFF'; //背景(通路)の色
-  var kabeColorHex = '#333'; //壁の色
+  // //ゴール地点
+  // var fontSize = 20 * (1 - (masuSize / (Math.pow(masuSize, 2) - masuSize)));
+  // ctx.textBaseline = "middle";
+  // ctx.textAlign = "center";
+  // ctx.font = Math.floor(fontSize) + "px 'ＭＳ Ｐゴシック'";
+  // ctx.fillStyle = '#333';
+  // ctx.fillText("G", 
+  //   goalRect.left + (masuSize / 2), 
+  //   goalRect.top  + (masuSize / 2), masuSize);
 
-  var self = this;
-  var ctx = this.ctx;
 
-  //１マスのサイズ(px)
-  var masuSize = this.masuSize;
-  var masuSizeMini = this.masuSizeMini;
+  //WebGL用の変数を設定
+  var scene = this.scene;
+  var camera = this.camera;
+  var renderer = this.renderer;
 
-  //背景塗りつぶし
-  ctx.fillStyle = fillColorHex;
-  ctx.fillRect(0, 0,           //x,y
-    (this.columnCount() * masuSize) - (Math.floor(this.columnCount() / 2) * masuSizeMini),  //横幅
-    (this.rowCount() * masuSize) - (Math.floor(this.rowCount() / 2) * masuSizeMini)  //縦幅
-  );
+  //光源
+  var directionalLight = new THREE.DirectionalLight( 0xffffff );
+  directionalLight.position.set( 0, 1, 1 );
+  scene.add( directionalLight );
 
-  //壁を塗る
-  var top = 0, left = 0;
-  ctx.fillStyle = kabeColorHex;
+  //基点となる座標
+  var x1 = this.topLeftAxis.x, x2 = 210;
+  var y1 = 0; y2 = 0;
+  var z1 = this.topLeftAxis.z, z2 = 350;
 
-  //描画する矩形リスト
-  var drawRects = [];
+  //ヘルパー
+  this.scene.add(this.createAxisHelper(x1, 0, z1));
+  //this.scene.add(this.createAxisHelper(x1, 0, z2));
+  //this.scene.add(this.createAxisHelper(x2, 0, z2));
+  //this.scene.add(this.createAxisHelper(x2, 0, z1));
+  
+  var top = z1, left = 0;
 
-  //スタート位置・ゴール位置を保持する変数
-  var startRect, goalRect;
-
-  //縦方向のループ
+  //縦方向のルール
   for (var i = 0; i < this.rowCount(); i++) {
     var height = this.getMasuHeight(i); // 行の高さ
-    left = 0;
-
+    left = x1;
     //横方向のループ
     for (var j = 0; j < this.columnCount(); j++) {
       var width = this.getMasuWidth(j); //横の幅
 
-      //壁の描画
+      //床
+      var yuka = new THREE.Mesh( 
+        new THREE.CubeGeometry( width, 1, height ), 
+        new THREE.MeshPhongMaterial( { color: 0xaaaaaa } )
+      );
+      yuka.position.set(left + (width /2), -3, top + (height/2));
+      scene.add( yuka );
+
       if (this.cellFlg(i, j) == FLG_KABE) {
-        //drawRects.push({ top: top, left: left, width: width, height: height });
-        ctx.fillStyle = kabeColorHex;
-        ctx.fillRect(left, top, width, height);
-      }
-
-      //通過済み通路の軌跡
-      if (this.kisekiFlg(i, j) == KISEKI_FLG_ON) {
-        ctx.fillStyle = "#B0C4DE";
-        ctx.fillRect(left, top, width, height);
-      }
-
-      if (this.cellFlg(i, j) == FLG_GOAL) {
-        goalRect = { top: top, left: left, width: width, height: height };
+        var mesh = new THREE.Mesh( 
+          new THREE.CubeGeometry( width, 12, height ), 
+          new THREE.MeshPhongMaterial( { color: 0x993333 } )
+        );
+        mesh.position.set(left + (width /2), 10, top + (height/2));
+        scene.add( mesh );
       }
 
       //横位置を右に移動
@@ -555,43 +546,92 @@ MeiroCreator.prototype.draw = function() {
     top += height;
   }
 
-  //描画
-  drawRects.forEach(function(rect, index) {
-    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
-  });
+  //ボールを作成
+  var sphere = new THREE.Mesh(  //③実際に表示する物体 (Object3D)                                          
+  new THREE.SphereGeometry(10, 20, 20),   // ①形状 (Geometry) 
+  new THREE.MeshPhongMaterial({  //②質感 (Material)                              
+    color: 0x00ff00
+  }));
+  sphere.receiveShadow = true;
+  sphere.position.set(-90, 6, -20);
+  sphere.name = "boll";
+  sphere.visible = false;
+  this.boll.object = sphere;
+  scene.add( sphere );
 
+  this.draw();
+};
+
+/**
+ * 画面に描画
+ */
+MeiroCreator.prototype.draw = function() {
+
+  console.log("draw!!");
+
+  //ゲーム開始中の場合、ボール座標を更新
   if (this.controller.isStart) {
-
-    //ボールの座標計算
-    var bollXPos = this.boll.posX;
-    var bollYPos = this.boll.posY;
-
-    /* 画像を描画 */
-    ctx.drawImage(this.bollImage, 
-      bollXPos - this.bollRadius, 
-      bollYPos - this.bollRadius, 
-      this.bollRadius * 2, 
-      this.bollRadius * 2);
+    console.log("start");
+    this.boll.object.visible = true;
+    this.boll.object.position.set(
+      this.boll.posX, 
+      this.boll.posY,
+      this.boll.posZ);
   }
 
-  //ゴール地点
-  var fontSize = 20 * (1 - (masuSize / (Math.pow(masuSize, 2) - masuSize)));
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-  ctx.font = Math.floor(fontSize) + "px 'ＭＳ Ｐゴシック'";
-  ctx.fillStyle = '#333';
-  ctx.fillText("G", 
-    goalRect.left + (masuSize / 2), 
-    goalRect.top  + (masuSize / 2), masuSize);
+  this.renderer.render( this.scene, this.camera );
+};
+
+/**
+ * ボールの座標を設定
+ */
+MeiroCreator.prototype.setBollObjectPosition = function() {
+
+  var bollSphere = null;
+  for (var i = 0; i < this.scene.children.length; i++) {
+    if (this.scene.children[i].name == "boll") {
+      bollSphere = this.scene.children[i];
+      break;
+    }
+  }
+
+  if (bollSphere != null) {
+    console.log(this.boll);
+    this.boll.object.visible = true;
+    this.boll.object.position.set(
+      this.boll.posX, 
+      this.boll.posY,
+      this.boll.posZ);
+  }
+
+};
+
+/**
+ * WebGL用の AxisHelper を作成する
+ */
+MeiroCreator.prototype.createAxisHelper = function(x, y, z) {
+  //軸の長さ
+  var axis = new THREE.AxisHelper(10);   
+  //sceneに追加
+  //this.scene.add(axis);
+  axis.position.set(x, y, z);
+  return axis;
+};
+
+/**
+ * 指定されたセルの行インデックス対応する Z座標を取得
+ */
+MeiroCreator.prototype.rowToZPoint = function(row) {
+  var zpos = Math.floor(row / 2) * this.masuSize;
+  zpos += Math.floor((row + 1) / 2) * this.masuSizeMini;
+  return this.topLeftAxis.z + zpos;
 };
 
 /**
  * 指定されたセルの行インデックス対応する Y座標を取得
  */
 MeiroCreator.prototype.rowToYPoint = function(row) {
-  var ypos = Math.floor(row / 2) * this.masuSize;
-  ypos += Math.floor((row + 1) / 2) * this.masuSizeMini;
-  return ypos;
+  return 0;
 };
 
 /**
@@ -600,15 +640,17 @@ MeiroCreator.prototype.rowToYPoint = function(row) {
 MeiroCreator.prototype.columnToXPoint = function(column) {
   var xpos = Math.floor(column / 2) * this.masuSize;
   xpos += Math.floor((column + 1) / 2) * this.masuSizeMini;
-  return xpos;
+  return this.topLeftAxis.x + xpos;
 };
 
 /**
- * Ｙ座標から行インデックス取得
+ * Z座標から行インデックス取得
  */
-MeiroCreator.prototype.YPointToRow = function(ypos) {
-  var row = (Math.floor(ypos / (this.masuSize + this.masuSizeMini)) * 2);
-  if ((ypos % (this.masuSize + this.masuSizeMini)) - this.masuSize >= 0 ) {
+MeiroCreator.prototype.ZPointToRow = function(zpos) {
+
+  var wk = zpos - this.topLeftAxis.z;
+  var row = (Math.floor(wk / (this.masuSize + this.masuSizeMini)) * 2);
+  if ((wk % (this.masuSize + this.masuSizeMini)) - this.masuSize >= 0 ) {
     row++;
   }
   return row;
@@ -618,8 +660,10 @@ MeiroCreator.prototype.YPointToRow = function(ypos) {
  * Ｘ座標から列インデックス取得
  */
 MeiroCreator.prototype.XPointToColumn = function(xpos) {
-  var col = (Math.floor(xpos / (this.masuSize + this.masuSizeMini)) * 2);
-  if ((xpos % (this.masuSize + this.masuSizeMini)) - this.masuSize >= 0 ) {
+
+  var wk = xpos - this.topLeftAxis.x;
+  var col = (Math.floor(wk / (this.masuSize + this.masuSizeMini)) * 2);
+  if ((wk % (this.masuSize + this.masuSizeMini)) - this.masuSize >= 0 ) {
     col++;
   }
   return col;
@@ -679,7 +723,8 @@ GameController.prototype.start = function() {
           cre.boll.column = j;
           cre.boll.row = i;
           cre.boll.posX = cre.columnToXPoint(j) + (cre.getMasuWidth(j) / 2);
-          cre.boll.posY = cre.rowToYPoint(j) + (cre.getMasuHeight(i) / 2);
+          cre.boll.posY = 6;
+          cre.boll.posZ = cre.rowToZPoint(j) + (cre.getMasuHeight(i) / 2);
           break;
         }
       }
@@ -703,6 +748,7 @@ GameController.prototype.start = function() {
     this.isStart = true;
     this.accelerationX = 0;
     this.accelerationY = 0;
+    
     cre.draw();
     cre.loopFrame();
 
@@ -772,21 +818,25 @@ GameController.prototype.doEvent = function() {
     } else {
       this.accelerationX += (this.accelerationX > 0 ? -0.1 : 0.1);
     }
+    console.log("fdfdfdfd");
 
   } else {
     //キーボード入力
     if (input_key_buffer[KEYCODE.LEFT] === true) {
       //左キー押下
       speedX = 1000;
-      this.accelerationX = Math.min(this.accelerationX + 0.1, 3);
+      this.accelerationX = Math.min(this.accelerationX + 0.4, 4);
     } else if (input_key_buffer[KEYCODE.RIGHT] === true) {
       //右キー押下
       speedX = -1000;
-      this.accelerationX = Math.max(this.accelerationX - 0.1, -3);
+      this.accelerationX = Math.max(this.accelerationX - 0.4, -4);
     } else {
       //横方向へのキー押下なし
       if (this.accelerationX != 0) {
-        this.accelerationX += (this.accelerationX > 0 ? -0.1 : 0.1);
+        this.accelerationX += (this.accelerationX > 0 ? -0.2 : 0.2);
+        this.accelerationX = this.accelerationX > 0 ? 
+          Math.floor(this.accelerationX * 10) / 10 :
+          Math.ceil(this.accelerationX * 10) / 10;
       }
     }
   }
@@ -795,8 +845,8 @@ GameController.prototype.doEvent = function() {
   speedX += this.accelerationX * 1000;
 
   //X軸の移動ピクセル数
-  var moveX = (-1 * speedX) / 1000;
-  $("#AX").text(moveX);
+  var moveX = Math.floor( (-1 * speedX) / 1000);
+  $("#AX").text(this.accelerationX);
 
   /**************************************/
   // Y軸の移動方向、移動速度を計算
@@ -815,15 +865,18 @@ GameController.prototype.doEvent = function() {
     if (input_key_buffer[KEYCODE.TOP] === true) {
       //上キー押下
       speedY = -1000;
-      this.accelerationY = Math.max(this.accelerationY - 0.1, -3);
+      this.accelerationY = Math.max(this.accelerationY - 0.4, -4);
     } else if (input_key_buffer[KEYCODE.BOTTOM] === true) {
       //下キー押下
       speedY = 1000;
-      this.accelerationY = Math.min(this.accelerationY + 0.1, 3);
+      this.accelerationY = Math.min(this.accelerationY + 0.4, 4);
     } else {
       //縦方向へのキー押下なし
       if (this.accelerationY != 0) {
-        this.accelerationY += (this.accelerationY > 0 ? -0.1 : 0.1);
+        this.accelerationY += (this.accelerationY > 0 ? -0.2 : 0.2);
+        this.accelerationY = this.accelerationY > 0 ? 
+          Math.floor(this.accelerationY * 10) / 10 :
+          Math.ceil(this.accelerationY * 10) / 10;
       }
     }
   }
@@ -863,8 +916,8 @@ GameController.prototype.move = function(moveX, moveY) {
   var cre = this.creator;
 
   //指定方向へ移動
-  cre.boll.posX += ((ckResult == "OK" || ckResult == "X_OK") ? moveX : 0);
-  cre.boll.posY += (ckResult == "OK" || ckResult == "Y_OK") ? moveY : 0;
+  cre.boll.posX += (ckResult == "OK" || ckResult == "X_OK") ? moveX : 0;
+  cre.boll.posZ += (ckResult == "OK" || ckResult == "Y_OK") ? moveY : 0;
 
   //現在のセル位置を退避
   var column = cre.boll.column;
@@ -872,7 +925,7 @@ GameController.prototype.move = function(moveX, moveY) {
 
   //移動先セルの行・列インデックスを設定
   cre.boll.column = cre.XPointToColumn(cre.boll.posX);
-  cre.boll.row = cre.YPointToRow(cre.boll.posY); 
+  cre.boll.row = cre.ZPointToRow(cre.boll.posZ); 
 
   //セル位置が変わったら、移動前セルを通過済みに設定する
   if (column != cre.boll.column || row != cre.boll.row) {
@@ -931,11 +984,11 @@ GameController.prototype.canMove = function(moveX, moveY) {
 
     //x,y座標を計算
     var posX = cre.boll.posX + cos;
-    var posY = cre.boll.posY + sin;
+    var posY = cre.boll.posZ + sin;
 
     //行・列インデックス算出
     var column = cre.XPointToColumn(posX);
-    var row = cre.YPointToRow(posY);
+    var row = cre.ZPointToRow(posY);
 
     //フラグを取得
     var flg = cre.cellFlg(row, column);
