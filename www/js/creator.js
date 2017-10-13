@@ -79,7 +79,7 @@ var MeiroCreator = function(width, height) {
   //this.ctx = canvas.getContext('2d');
 
   //THREE.jsのレンダラを初期化
-  this.renderer = new THREE.CanvasRenderer();
+  this.renderer = new THREE.WebGLRenderer();
   this.renderer.setSize( this.C_WIDTH, this.C_HEIGHT );
   this.renderer.setClearColor(0x444444, 1.0);
   document.getElementById("renderContainer").appendChild( this.renderer.domElement );
