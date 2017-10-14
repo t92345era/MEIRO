@@ -102,7 +102,7 @@ var MeiroCreator = function(width, height) {
   this.camera.rotation.x = -1.3;
 
   //ゲーム盤の左上の座標
-  this.topLeftAxis = { x: -210, y: 0, z: -70 };
+  this.topLeftAxis = { x: -200, y: 0, z: -30 };
   
   //マス数分の２次元配列 (0：通路、1：壁、2:スタート地点、3:ゴール地点)
   this.data = [];
@@ -531,15 +531,23 @@ MeiroCreator.prototype.create3dObjects = function() {
       //床
       var yuka = new THREE.Mesh( 
         new THREE.CubeGeometry( width, 1, height ), 
-        new THREE.MeshPhongMaterial( { color: 0xaaaaaa } )
+        new THREE.MeshPhongMaterial( { 
+          color: 0xaaaaaa, 
+          specular: 0x666666, 
+          shininess: 120,
+          metal: true
+        } )
       );
       yuka.position.set(left + (width /2), -3, top + (height/2));
+      //yuka.material.color = 0x993333;
+      yuka.material.color.setHex( 0xffffff );
+      yuka.userData = { row: i, column: j };
       scene.add( yuka );
 
       if (this.cellFlg(i, j) == FLG_KABE) {
         var mesh = new THREE.Mesh( 
           new THREE.CubeGeometry( width, 12, height ), 
-          new THREE.MeshPhongMaterial( { color: 0x993333 } )
+          new THREE.MeshPhongMaterial( { color: 0x993333} )
         );
         mesh.position.set(left + (width /2), 10, top + (height/2));
         scene.add( mesh );
@@ -565,7 +573,47 @@ MeiroCreator.prototype.create3dObjects = function() {
   this.boll.object = sphere;
   scene.add( sphere );
 
+//  this.addTsukaObject(2, 2);
+
   this.draw();
+};
+
+/**
+ * 通過済みの経路を表すオブジェクトを通路に配置する
+ */
+MeiroCreator.prototype.addTsukaObject = function(row, column) {
+
+  //存在チェック
+  for (var i = 0; i < this.scene.children.length; i++) {
+
+    if (this.scene.children[i] instanceof THREE.Mesh) {
+      var m = this.scene.children[i];
+      if (m.userData && m.userData.type && m.userData.type == "keiro") {
+        if (m.userData.row == row && m.userData.column == column) {
+          return;
+        }
+      }
+    }
+  }
+
+  console.log("add keiro");
+  var xpos = this.columnToXPoint(column) + this.getMasuWidth(column) / 2;
+  var zpos = this.rowToZPoint(row) + this.getMasuHeight(row) / 2;
+  var cylinder = new THREE.Mesh(                                     
+    new THREE.CylinderGeometry(
+      this.getMasuWidth(column) / 2,
+      this.getMasuHeight(row) / 2,
+      2,
+      20),                         
+    new THREE.MeshPhongMaterial({                                      
+      color: 0x3333FF
+    }
+  ));
+  cylinder.position.set(xpos, 2, zpos);
+  cylinder.userData = { type: "keiro", row: row, column: column };
+
+  this.scene.add(cylinder);
+
 };
 
 /**
@@ -583,6 +631,8 @@ MeiroCreator.prototype.draw = function() {
       this.boll.posX, 
       this.boll.posY,
       this.boll.posZ);
+  } else {
+    this.boll.object.visible = false;
   }
 
   this.renderer.render( this.scene, this.camera );
@@ -936,6 +986,7 @@ GameController.prototype.move = function(moveX, moveY) {
   //セル位置が変わったら、移動前セルを通過済みに設定する
   if (column != cre.boll.column || row != cre.boll.row) {
     cre.setKisekiFlg(row, column, KISEKI_FLG_ON);
+    cre.addTsukaObject(row, column);
   }
 
   //ボールの移動を行った場合、true を返却
@@ -989,8 +1040,8 @@ GameController.prototype.canMove = function(moveX, moveY) {
     var sin = cre.bollRadius * (Math.sin(radian) * -1);
 
     //x,y座標を計算
-    var posX = cre.boll.posX + cos;
-    var posY = cre.boll.posZ + sin;
+    var posX = cre.boll.posX + moveX + cos;
+    var posY = cre.boll.posZ + moveY + sin;
 
     //行・列インデックス算出
     var column = cre.XPointToColumn(posX);
