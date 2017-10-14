@@ -84,7 +84,7 @@ var MeiroCreator = function(width, height) {
     this.renderer = new THREE.CanvasRenderer();
   } else {
     this.renderer = new THREE.WebGLRenderer();
-  }
+  } 
   
   this.renderer.setSize( this.C_WIDTH, this.C_HEIGHT );
   this.renderer.setClearColor(0x444444, 1.0);
